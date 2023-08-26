@@ -1,6 +1,9 @@
 package register
 
-import "github.com/buke/quickjs-go"
+import (
+	"github.com/buke/quickjs-go"
+	polyfill "github.com/buke/quickjs-go-polyfill"
+)
 
 type QJSFnType func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value
 
@@ -27,6 +30,7 @@ func QJSRegisterGlobalFn(qjsFnName string, qjsFn QJSFnType) {
 }
 
 func RuntimeWrapper(ctx *quickjs.Context) {
+	polyfill.InjectAll(ctx)
 	for jsFnName, qjsFn := range GlobalsFn {
 		ctx.Globals().Set(jsFnName, ctx.Function(qjsFn))
 	}
