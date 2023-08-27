@@ -67,6 +67,9 @@ ifdef CONFIG_CLANG
   HOST_CC=clang
   CC=$(CROSS_PREFIX)clang
   CFLAGS=-g -Wall -MMD -MF $(OBJDIR)/$(@F).d
+  ifdef CONFIG_DARWIN_ARM64
+    CFLAGS += -target arm64-apple-macos11
+  endif
   CFLAGS += -Wextra
   CFLAGS += -Wno-sign-compare
   CFLAGS += -Wno-missing-field-initializers
