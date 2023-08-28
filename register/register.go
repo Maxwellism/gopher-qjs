@@ -41,4 +41,18 @@ func RuntimeWrapper(ctx *quickjs.Context) {
 		}
 		ctx.Globals().Set(namespace, register)
 	}
+
+	// class
+	for className, classInfo := range jsClassList {
+		ctx.Globals().Set(className, ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+
+			classInfo.Constructor(ctx, this, args)
+
+			for methodName, method := range classInfo.MountMethods {
+				this.Set(methodName, ctx.Function(method))
+			}
+
+			return ctx.Null()
+		}))
+	}
 }
