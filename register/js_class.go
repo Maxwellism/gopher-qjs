@@ -1,19 +1,18 @@
 package register
 
-import "github.com/buke/quickjs-go"
-
-type QjsClassConstructor func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value)
-
-type JsClass struct {
-	Constructor  QjsClassConstructor
+type jsClass struct {
+	Constructor  QJSFnType
 	MountMethods map[string]QJSFnType
 }
 
-var jsClassList = map[string]*JsClass{}
+var jsClassList = map[string]*jsClass{}
 
-func SetConstructorClass(className string, constructor QjsClassConstructor) {
+var jsClassNameList = []string{}
+
+func SetConstructorClass(className string, constructor QJSFnType) {
 	if jsClassList[className] == nil {
-		jsClassList[className] = &JsClass{Constructor: constructor}
+		jsClassNameList = append(jsClassNameList, className)
+		jsClassList[className] = &jsClass{Constructor: constructor}
 	} else {
 		jsClassList[className].Constructor = constructor
 	}
@@ -21,7 +20,8 @@ func SetConstructorClass(className string, constructor QjsClassConstructor) {
 
 func SetClassMethod(className, method string, qjsFn QJSFnType) {
 	if jsClassList[className] == nil {
-		jsClassList[className] = &JsClass{
+		jsClassNameList = append(jsClassNameList, className)
+		jsClassList[className] = &jsClass{
 			MountMethods: map[string]QJSFnType{},
 		}
 	} else if jsClassList[className].MountMethods == nil {

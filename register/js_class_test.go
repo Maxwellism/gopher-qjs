@@ -14,9 +14,12 @@ func TestClass(t *testing.T) {
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	SetConstructorClass("ClassTest", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) {
+	SetConstructorClass("ClassTest", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+
 		this.Set("name", ctx.String(args[0].String()))
 		this.Set("age", ctx.Int32(args[1].Int32()))
+
+		return ctx.Null()
 	})
 	SetClassMethod("ClassTest", "sayHello", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
 		name := this.Get("name")

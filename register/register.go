@@ -7,34 +7,34 @@ import (
 
 type QJSFnType func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value
 
-var GlobalsFn = map[string]QJSFnType{}
+var globalsFn = map[string]QJSFnType{}
 
-var NameSpaceFnList = map[string]map[string]QJSFnType{}
+var nameSpaceFnList = map[string]map[string]QJSFnType{}
 
 func QJSRegisterSpaceNameFn(namespace string, qjsFnName string, qjsFn QJSFnType) {
 	if namespace == "" {
 		panic("namespace is empty!")
 	}
-	if namespaceInfo := NameSpaceFnList[namespace]; namespaceInfo != nil {
+	if namespaceInfo := nameSpaceFnList[namespace]; namespaceInfo != nil {
 		namespaceInfo[qjsFnName] = qjsFn
 	} else {
 		namespaceInfo = map[string]QJSFnType{}
 		namespaceInfo[qjsFnName] = qjsFn
 
-		NameSpaceFnList[namespace] = namespaceInfo
+		nameSpaceFnList[namespace] = namespaceInfo
 	}
 }
 
 func QJSRegisterGlobalFn(qjsFnName string, qjsFn QJSFnType) {
-	GlobalsFn[qjsFnName] = qjsFn
+	globalsFn[qjsFnName] = qjsFn
 }
 
 func RuntimeWrapper(ctx *quickjs.Context) {
 	polyfill.InjectAll(ctx)
-	for jsFnName, qjsFn := range GlobalsFn {
+	for jsFnName, qjsFn := range globalsFn {
 		ctx.Globals().Set(jsFnName, ctx.Function(qjsFn))
 	}
-	for namespace, namespaceInfo := range NameSpaceFnList {
+	for namespace, namespaceInfo := range nameSpaceFnList {
 		register := ctx.Object()
 		for qjsFnName, namespaceQJSFn := range namespaceInfo {
 			register.Set(qjsFnName, ctx.Function(namespaceQJSFn))
@@ -43,13 +43,17 @@ func RuntimeWrapper(ctx *quickjs.Context) {
 	}
 
 	// class
-	for className, classInfo := range jsClassList {
-		ctx.Globals().Set(className, ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	for _, className := range jsClassNameList {
 
-			classInfo.Constructor(ctx, this, args)
+		ctx.Globals().Set(className, ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+			classInfo := jsClassList[className]
 
 			for methodName, method := range classInfo.MountMethods {
 				this.Set(methodName, ctx.Function(method))
+			}
+
+			if classInfo.Constructor != nil {
+				return classInfo.Constructor(ctx, this, args)
 			}
 
 			return ctx.Null()
