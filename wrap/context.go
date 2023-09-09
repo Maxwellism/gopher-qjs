@@ -222,9 +222,16 @@ func (ctx *Context) AtomIdx(idx int64) Atom {
 	return Atom{ctx: ctx, ref: C.JS_NewAtomUInt32(ctx.ref, C.uint32_t(idx))}
 }
 
-func (ctx *Context) eval(code string) Value { return ctx.evalFile(code, "code", C.JS_EVAL_TYPE_GLOBAL) }
+func (ctx *Context) eval(code string) Value {
+	codePtr := C.CString(code)
+	defer C.free(unsafe.Pointer(codePtr))
 
-func (ctx *Context) evalFile(code, filename string, evalType C.int) Value {
+	filenamePtr := C.CString("code")
+	defer C.free(unsafe.Pointer(filenamePtr))
+	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, C.JS_EVAL_TYPE_GLOBAL)}
+}
+
+func (ctx *Context) evalMode(code, filename string, evalType C.int) Value {
 	codePtr := C.CString(code)
 	defer C.free(unsafe.Pointer(codePtr))
 
@@ -232,6 +239,31 @@ func (ctx *Context) evalFile(code, filename string, evalType C.int) Value {
 	defer C.free(unsafe.Pointer(filenamePtr))
 
 	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, evalType)}
+}
+
+func (ctx *Context) evalFile(code, filename string) Value {
+	codePtr := C.CString(code)
+	defer C.free(unsafe.Pointer(codePtr))
+
+	filenamePtr := C.CString(filename)
+	defer C.free(unsafe.Pointer(filenamePtr))
+
+	isModule := C.JS_DetectModule(codePtr, C.size_t(len(code))) != 0
+
+	var res Value
+	if isModule {
+		res = ctx.evalMode(code, filename, C.JS_EVAL_TYPE_MODULE|C.JS_EVAL_FLAG_COMPILE_ONLY)
+		if !res.IsException() {
+			if C.getValTag(res.ref) == C.JS_TAG_MODULE {
+				C.js_module_set_import_meta(ctx.ref, res.ref, 1, 1)
+				res = Value{ctx: ctx, ref: C.JS_EvalFunction(ctx.ref, res.ref)}
+				//goto EXIT
+			}
+		}
+	} else {
+		res = ctx.evalMode(code, filename, 0)
+	}
+	return res
 }
 
 // Invoke invokes a function with given this value and arguments.
@@ -253,7 +285,7 @@ func (ctx *Context) Eval(code string) (Value, error) { return ctx.EvalFile(code,
 // EvalFile returns a js value with given code and filename.
 // Need call Free() `quickjs.Value`'s returned by `Eval()` and `EvalFile()` and `EvalBytecode()`.
 func (ctx *Context) EvalFile(code, filename string) (Value, error) {
-	val := ctx.evalFile(code, filename, C.JS_EVAL_TYPE_GLOBAL)
+	val := ctx.evalFile(code, filename)
 	if val.IsException() {
 		return val, ctx.Exception()
 	}
@@ -285,7 +317,7 @@ func (ctx *Context) Compile(code string) ([]byte, error) {
 
 // Compile returns a compiled bytecode with given filename.
 func (ctx *Context) CompileFile(code, filename string) ([]byte, error) {
-	val := ctx.evalFile(code, filename, C.JS_EVAL_FLAG_COMPILE_ONLY)
+	val := ctx.evalMode(code, filename, C.JS_EVAL_FLAG_COMPILE_ONLY)
 	defer val.Free()
 	if val.IsException() {
 		return nil, ctx.Exception()

@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "quickjs.h"
+#include "quickjs-libc.h"
 
 extern JSValue JS_NewNull();
 extern JSValue JS_NewUndefined();
@@ -21,3 +21,9 @@ typedef struct {
 } handlerArgs;
 
 extern void SetInterruptHandler(JSRuntime *rt, void *handlerArgs);
+
+extern int getValTag(JSValueConst v);
+
+extern JSCFunctionListEntry getJSCFunctionEntry(const char *fnName,int argLen,JSCFunction jsFn);
+
+extern JSModuleDef *js_my_module_loader(JSContext *ctx,const char *module_name, void *opaque);

@@ -8,6 +8,7 @@ import (
 	"io"
 	"runtime"
 	"time"
+	"unsafe"
 )
 
 // Runtime represents a Javascript runtime corresponding to an object heap. Several runtimes can exist at the same time but they cannot exchange objects. Inside a given runtime, no multi-threading is supported.
@@ -55,12 +56,37 @@ func (r Runtime) SetMaxStackSize(stack_size uint32) {
 func (r Runtime) NewContext() *Context {
 	ref := C.JS_NewContext(r.ref)
 
+	C.js_std_init_handlers(r.ref)
+
+	C.JS_SetModuleLoaderFunc(
+		r.ref,
+		(*C.JSModuleNormalizeFunc)(unsafe.Pointer(nil)),
+		(*C.JSModuleLoaderFunc)(C.js_module_loader),
+		unsafe.Pointer(nil),
+	)
+
 	C.JS_AddIntrinsicBigFloat(ref)
 	C.JS_AddIntrinsicBigDecimal(ref)
 	C.JS_AddIntrinsicOperators(ref)
 	C.JS_EnableBignumExt(ref, C.int(1))
+	loadPreludeModules(ref)
 
 	return &Context{ref: ref, runtime: &r}
+}
+
+func loadPreludeModules(ctx *C.JSContext) {
+
+	stdModulePtr := C.CString("std")
+	defer C.free(unsafe.Pointer(stdModulePtr))
+
+	C.js_init_module_std(ctx, stdModulePtr)
+
+	osModulePtr := C.CString("os")
+	defer C.free(unsafe.Pointer(osModulePtr))
+	C.js_init_module_os(ctx, osModulePtr)
+
+	C.js_std_add_helpers(ctx, -1, (**C.char)(unsafe.Pointer(nil)))
+	// C.JS_AddIntrinsicProxy(ctx)
 }
 
 // ExecutePendingJob will execute all pending jobs.

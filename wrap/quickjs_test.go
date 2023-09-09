@@ -3,7 +3,9 @@ package quickjs_test
 import (
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -323,6 +325,28 @@ func TestEvalBytecode(t *testing.T) {
 
 	require.EqualValues(t, 55, result.Int32())
 }
+
+func TestEvalFile(t *testing.T) {
+	rt := quickjs.NewRuntime()
+	defer rt.Close()
+
+	ctx := rt.NewContext()
+	defer ctx.Close()
+
+	file, err := os.Open("hello_module.js")
+	if err != nil {
+		fmt.Println("无法打开文件:", err)
+		return
+	}
+	defer file.Close()
+	jsStr, _ := io.ReadAll(file)
+	rt1, err := ctx.EvalFile(string(jsStr), "hello_module.js")
+	//buf, err := ctx.Compile(jsStr)
+	require.NoError(t, err)
+	res := rt1.String()
+	fmt.Println(res)
+}
+
 func TestBadSyntax(t *testing.T) {
 	rt := quickjs.NewRuntime()
 	defer rt.Close()
