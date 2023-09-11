@@ -13,8 +13,9 @@ import (
 
 // Runtime represents a Javascript runtime corresponding to an object heap. Several runtimes can exist at the same time but they cannot exchange objects. Inside a given runtime, no multi-threading is supported.
 type Runtime struct {
-	ref  *C.JSRuntime
-	loop *Loop // only one loop per runtime
+	ref       *C.JSRuntime
+	loop      *Loop // only one loop per runtime
+	goModList []*JSModule
 }
 
 // NewRuntime creates a new quickjs runtime.
@@ -70,6 +71,11 @@ func (r Runtime) NewContext() *Context {
 	C.JS_AddIntrinsicOperators(ref)
 	C.JS_EnableBignumExt(ref, C.int(1))
 	loadPreludeModules(ref)
+
+	for _, m := range r.goModList {
+		m.buildModule(ref)
+	}
+
 	//
 	//cStr := C.CString("ModuleNameTest")
 	//defer C.free(unsafe.Pointer(cStr))
@@ -136,4 +142,9 @@ func (r Runtime) ExecuteAllPendingJobs() error {
 		time.Sleep(time.Millisecond * 1) // prevent 100% CPU
 	}
 	return err
+}
+
+// AddGoMod add go module
+func (r *Runtime) AddGoMod(m *JSModule) {
+	r.goModList = append(r.goModList, m)
 }

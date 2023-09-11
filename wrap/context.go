@@ -428,14 +428,3 @@ func (ctx *Context) Exception() error {
 func (ctx *Context) ScheduleJob(fn func()) {
 	ctx.runtime.loop.scheduleJob(fn)
 }
-
-func (ctx *Context) CreateModule(name string) *JSModule {
-	jsMod := &JSModule{
-		ctx:        ctx,
-		ModuleName: name,
-		//fnIds:      []int32{},
-		fnList: []C.JSCFunctionListEntry{},
-	}
-	moduleList[name] = jsMod
-	return jsMod
-}

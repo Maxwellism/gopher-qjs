@@ -15,7 +15,8 @@ int JS_DeletePropertyInt64(JSContext *ctx, JSValueConst obj, int64_t idx, int fl
 extern JSValue InvokeProxy(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 extern JSValue InvokeAsyncProxy(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 
-extern JSValue InvokeGoFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+extern JSValue InvokeGoModFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+extern int InvokeGoModInit(JSContext *ctx, JSModuleDef *m);
 
 typedef struct {
     uintptr_t fn;
@@ -25,8 +26,5 @@ extern void SetInterruptHandler(JSRuntime *rt, void *handlerArgs);
 
 extern int getValTag(JSValueConst v);
 
-extern JSCFunctionListEntry getJSCFunctionMagicEntry(const char *fnName,int argLen,int magic,JSCFunctionMagic jsFn);
-
 extern JSModuleDef *js_my_module_loader(JSContext *ctx,const char *module_name, void *opaque);
 
-extern int InvokeGoInitModule(JSContext *ctx, JSModuleDef *m);

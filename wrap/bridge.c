@@ -21,8 +21,8 @@ JSValue InvokeAsyncProxy(JSContext *ctx, JSValueConst this_val, int argc, JSValu
 	return goAsyncProxy(ctx, this_val, argc, argv);
 }
 
-JSValue InvokeGoFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
-    return goFnHandle(ctx, this_val, argc, argv, magic);
+JSValue InvokeGoModFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
+    return goModFnHandle(ctx, this_val, argc, argv, magic);
 }
 
 int interruptHandler(JSRuntime *rt, void *handlerArgs) {
@@ -31,24 +31,6 @@ int interruptHandler(JSRuntime *rt, void *handlerArgs) {
 
 void SetInterruptHandler(JSRuntime *rt, void *handlerArgs){
 	JS_SetInterruptHandler(rt, &interruptHandler, handlerArgs);
-}
-
-JSCFunctionListEntry getJSCFunctionMagicEntry(const char *fnName,int argLen,int magic,JSCFunctionMagic jsFn){
-    JSCFunctionListEntry res;
-    JSCFunctionType cfunc;
-    cfunc.generic_magic = jsFn;
-
-    res.name = fnName;
-    res.prop_flags = JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE;
-    res.def_type = JS_DEF_CFUNC;
-    res.magic = magic;
-
-
-    res.u.func.length = argLen;
-    res.u.func.cfunc = cfunc;
-    res.u.func.cproto = JS_CFUNC_generic_magic;
-    // res = JS_CFUNC_DEF(fnName, argLen, jsFn);
-    return res;
 }
 
 int getValTag(JSValueConst v) {
@@ -89,6 +71,6 @@ JSModuleDef *js_my_module_loader(JSContext *ctx,
     return m;
 }
 
-int InvokeGoInitModule(JSContext *ctx, JSModuleDef *m) {
+int InvokeGoModInit(JSContext *ctx, JSModuleDef *m) {
     return GoInitModule(ctx,m);
 }

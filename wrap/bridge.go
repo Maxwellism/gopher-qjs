@@ -104,33 +104,36 @@ func goInterruptHandler(rt *C.JSRuntime, handlerArgs unsafe.Pointer) C.int {
 	return C.int(hFnValue())
 }
 
-//export goFnHandle
-func goFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
+//export goModFnHandle
+func goModFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
 	refs := unsafe.Slice(argv, argc) // Go 1.17 and later
 
 	id := int32(magic)
 
-	fmt.Println(magic)
-
 	entry := restoreFuncModPtr(id)
+
+	if entry == nil {
+		panic(fmt.Sprintf("not find magic id is %d func", id))
+	}
+
+	crt := C.JS_GetRuntime(ctx)
+
+	goRuntime := &Runtime{
+		ref:  crt,
+		loop: NewLoop(),
+	}
+
+	goContext := &Context{
+		ref:     ctx,
+		runtime: goRuntime}
 
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
-		args[i].ctx = entry.ctx
+		args[i].ctx = goContext
 		args[i].ref = refs[i]
 	}
 
-	//runtime := &Runtime{
-	//	ref: C.JS_GetRuntime(ctx),
-	//	loop: NewLoop(),
-	//}
-	//
-	//goContext := &Context{
-	//	ref: ctx,
-	//
-	//}
-
-	result := entry.fn(entry.ctx, Value{ctx: entry.ctx, ref: thisVal}, args)
+	result := entry.fn(goContext, Value{ctx: goContext, ref: thisVal}, args)
 
 	return result.ref
 }
@@ -139,16 +142,26 @@ func goFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JS
 func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 	jsAtom := C.JS_GetModuleName(ctx, m)
 	a := Atom{ctx: &Context{ref: ctx}, ref: jsAtom}
-	jsMod := moduleList[a.String()]
+	jsMod := moduleMap[a.String()]
 
-	funcs := (*C.JSCFunctionListEntry)(unsafe.Pointer(&jsMod.fnList[0]))
+	for _, id := range jsMod.ids {
 
-	C.JS_SetModuleExportList(
-		ctx,
-		m,
-		funcs,
-		C.int(jsMod.exportFnLen))
-	//a := Atom{ctx: &Context{ref: ctx}, ref: m.module_name}
-	//fmt.Println(a.String())
+		fnInfo := restoreFuncModPtr(id)
+
+		goStr := fnInfo.fnName
+
+		cStr := C.CString(goStr)
+		defer C.free(unsafe.Pointer(cStr)) // 释放内存
+
+		val := C.JS_NewCFunctionMagic(
+			ctx,
+			(*C.JSCFunctionMagic)(unsafe.Pointer(C.InvokeGoModFn)),
+			cStr,
+			0,
+			C.JS_CFUNC_generic_magic,
+			C.int(id))
+
+		C.JS_SetModuleExport(ctx, m, cStr, val)
+	}
 	return C.int(0)
 }

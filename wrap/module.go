@@ -6,77 +6,80 @@ package quickjs
 */
 import "C"
 import (
-	"fmt"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
 
-type modFuncEntry struct {
-	ctx *Context
-	fn  func(ctx *Context, this Value, args []Value) Value
+type moduleFuncEntry struct {
+	fnName string
+	fn     func(ctx *Context, this Value, args []Value) Value
 }
 
-var funcModPtrLen int32
-var fnModPtrStore = make(map[int32]modFuncEntry)
-var moduleList = make(map[string]*JSModule)
+var moduleMap = make(map[string]*JSModule)
 
-func storeFuncModPtr(v modFuncEntry) int32 {
-	id := atomic.AddInt32(&funcModPtrLen, 1) - 1
-	funcPtrLock.Lock()
-	defer funcPtrLock.Unlock()
-	fnModPtrStore[id] = v
+var goModFnPtrLen int32
+var goModLock sync.Mutex
+var goModFnLock sync.Mutex
+var goModFnPtrStore = make(map[int32]*moduleFuncEntry)
+
+type JSModule struct {
+	modName string
+	ids     []int32
+}
+
+func NewMod(modName string) *JSModule {
+	m := &JSModule{
+		ids:     []int32{},
+		modName: modName,
+	}
+	goModLock.Lock()
+	moduleMap[modName] = m
+	goModLock.Unlock()
+	return m
+}
+
+func (m *JSModule) storeFuncModPtr(v *moduleFuncEntry) int32 {
+	id := atomic.AddInt32(&goModFnPtrLen, 1) - 1
+	goModFnLock.Lock()
+	defer goModFnLock.Unlock()
+	goModFnPtrStore[id] = v
+	m.ids = append(m.ids, id)
 	return id
 }
 
-func restoreFuncModPtr(ptr int32) modFuncEntry {
-	funcPtrLock.Lock()
-	defer funcPtrLock.Unlock()
-	return fnModPtrStore[ptr]
+func restoreFuncModPtr(ptr int32) *moduleFuncEntry {
+	goModFnLock.Lock()
+	defer goModFnLock.Unlock()
+	return goModFnPtrStore[ptr]
 }
 
-type JSModule struct {
-	ctx        *Context
-	ModuleName string
-	//fnIds      []int32
-	fnList      []C.JSCFunctionListEntry
-	exportFnLen int
-}
-
-func (m *JSModule) AddExportFn(fnName string, argLen int, fn func(ctx *Context, this Value, args []Value) Value) {
-	moduleFnEntry := modFuncEntry{
-		ctx: m.ctx,
-		fn:  fn,
+func (m *JSModule) AddExportFn(fnName string, fn func(ctx *Context, this Value, args []Value) Value) {
+	mFnEntry := &moduleFuncEntry{
+		fn:     fn,
+		fnName: fnName,
 	}
-	m.exportFnLen += 1
-	id := storeFuncModPtr(moduleFnEntry)
-
-	cStr := C.CString(fnName)
-	defer C.free(unsafe.Pointer(cStr))
-	fmt.Println(id)
-	jsFn := C.getJSCFunctionMagicEntry(
-		cStr,
-		C.int(argLen),
-		C.int(id),
-		(*C.JSCFunctionMagic)(unsafe.Pointer(C.InvokeGoFn)))
-
-	m.fnList = append(m.fnList, jsFn)
-	//m.fnIds = append(m.fnIds, id)
+	m.storeFuncModPtr(mFnEntry)
 }
 
-func (m *JSModule) BuildModule() {
-	cStr := C.CString(m.ModuleName)
+func (m *JSModule) buildModule(ctx *C.JSContext) {
+	cStr := C.CString(m.modName)
 	defer C.free(unsafe.Pointer(cStr))
 	// JSModuleInitFunc
-	jsMod := C.JS_NewCModule(
-		m.ctx.ref,
+	if ctx == nil {
+		panic("quickjs JSContext is null")
+	}
+	cmod := C.JS_NewCModule(
+		ctx,
 		cStr,
-		(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoInitModule)))
+		(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoModInit)))
 
-	funcs := (*C.JSCFunctionListEntry)(unsafe.Pointer(&m.fnList[0]))
+	for _, id := range m.ids {
+		fnInfo := restoreFuncModPtr(id)
+		goStr := fnInfo.fnName
+		cStr1 := C.CString(goStr)
+		defer C.free(unsafe.Pointer(cStr1))
+		C.JS_AddModuleExport(ctx, cmod, cStr1)
+	}
 
-	C.JS_SetModuleExportList(
-		m.ctx.ref,
-		jsMod,
-		funcs,
-		C.int(m.exportFnLen))
 }
