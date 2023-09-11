@@ -280,12 +280,32 @@ func (ctx *Context) Invoke(fn Value, this Value, args ...Value) Value {
 
 // Eval returns a js value with given code.
 // Need call Free() `quickjs.Value`'s returned by `Eval()` and `EvalFile()` and `EvalBytecode()`.
-func (ctx *Context) Eval(code string) (Value, error) { return ctx.EvalFile(code, "code") }
+func (ctx *Context) Eval(code string) (Value, error) {
+	ret := ctx.evalMode(code, "code", 0)
+	if ret.IsException() {
+		return ret, ret.Error()
+	}
+	return ret, nil
+}
 
 // EvalFile returns a js value with given code and filename.
 // Need call Free() `quickjs.Value`'s returned by `Eval()` and `EvalFile()` and `EvalBytecode()`.
-func (ctx *Context) EvalFile(code, filename string) (Value, error) {
-	val := ctx.evalFile(code, filename)
+func (ctx *Context) EvalFile(filePath string) (Value, error) {
+	var scriptLen C.size_t
+
+	cFilePathStr := C.CString(filePath)
+	defer C.free(unsafe.Pointer(cFilePathStr))
+
+	script := C.js_load_file(ctx.ref, &scriptLen, cFilePathStr)
+
+	if script == (*C.uint8_t)(unsafe.Pointer(nil)) {
+		err := fmt.Errorf("failed to load %s", filePath)
+		return Value{}, err
+	}
+
+	defer C.js_free(ctx.ref, unsafe.Pointer(script))
+
+	val := ctx.evalFile(C.GoString((*C.char)(unsafe.Pointer(script))), filePath)
 	if val.IsException() {
 		return val, ctx.Exception()
 	}
@@ -407,4 +427,15 @@ func (ctx *Context) Exception() error {
 // ScheduleJob Schedule a context's job.
 func (ctx *Context) ScheduleJob(fn func()) {
 	ctx.runtime.loop.scheduleJob(fn)
+}
+
+func (ctx *Context) CreateModule(name string) *JSModule {
+	jsMod := &JSModule{
+		ctx:        ctx,
+		ModuleName: name,
+		//fnIds:      []int32{},
+		fnList: []C.JSCFunctionListEntry{},
+	}
+	moduleList[name] = jsMod
+	return jsMod
 }

@@ -1,6 +1,7 @@
 package quickjs
 
 import (
+	"fmt"
 	"runtime/cgo"
 	"sync"
 	"sync/atomic"
@@ -10,6 +11,7 @@ import (
 /*
 #include <stdint.h>
 #include "bridge.h"
+#include "cutils.h"
 */
 import "C"
 
@@ -100,4 +102,53 @@ func goInterruptHandler(rt *C.JSRuntime, handlerArgs unsafe.Pointer) C.int {
 	// defer hFn.Delete()
 
 	return C.int(hFnValue())
+}
+
+//export goFnHandle
+func goFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
+	refs := unsafe.Slice(argv, argc) // Go 1.17 and later
+
+	id := int32(magic)
+
+	fmt.Println(magic)
+
+	entry := restoreFuncModPtr(id)
+
+	args := make([]Value, len(refs))
+	for i := 0; i < len(args); i++ {
+		args[i].ctx = entry.ctx
+		args[i].ref = refs[i]
+	}
+
+	//runtime := &Runtime{
+	//	ref: C.JS_GetRuntime(ctx),
+	//	loop: NewLoop(),
+	//}
+	//
+	//goContext := &Context{
+	//	ref: ctx,
+	//
+	//}
+
+	result := entry.fn(entry.ctx, Value{ctx: entry.ctx, ref: thisVal}, args)
+
+	return result.ref
+}
+
+//export GoInitModule
+func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
+	jsAtom := C.JS_GetModuleName(ctx, m)
+	a := Atom{ctx: &Context{ref: ctx}, ref: jsAtom}
+	jsMod := moduleList[a.String()]
+
+	funcs := (*C.JSCFunctionListEntry)(unsafe.Pointer(&jsMod.fnList[0]))
+
+	C.JS_SetModuleExportList(
+		ctx,
+		m,
+		funcs,
+		C.int(jsMod.exportFnLen))
+	//a := Atom{ctx: &Context{ref: ctx}, ref: m.module_name}
+	//fmt.Println(a.String())
+	return C.int(0)
 }

@@ -3,9 +3,7 @@ package quickjs_test
 import (
 	"errors"
 	"fmt"
-	"io"
 	"math/big"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -333,14 +331,7 @@ func TestEvalFile(t *testing.T) {
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	file, err := os.Open("hello_module.js")
-	if err != nil {
-		fmt.Println("无法打开文件:", err)
-		return
-	}
-	defer file.Close()
-	jsStr, _ := io.ReadAll(file)
-	rt1, err := ctx.EvalFile(string(jsStr), "hello_module.js")
+	rt1, err := ctx.EvalFile("./examples/hello_module.js")
 	//buf, err := ctx.Compile(jsStr)
 	require.NoError(t, err)
 	res := rt1.String()

@@ -70,6 +70,14 @@ func (r Runtime) NewContext() *Context {
 	C.JS_AddIntrinsicOperators(ref)
 	C.JS_EnableBignumExt(ref, C.int(1))
 	loadPreludeModules(ref)
+	//
+	//cStr := C.CString("ModuleNameTest")
+	//defer C.free(unsafe.Pointer(cStr))
+	//// JSModuleInitFunc
+	//C.JS_NewCModule(
+	//	ref,
+	//	cStr,
+	//	(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoInitModule)))
 
 	return &Context{ref: ref, runtime: &r}
 }
