@@ -25,6 +25,18 @@ JSValue InvokeGoModFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueCon
     return goModFnHandle(ctx, this_val, argc, argv, magic);
 }
 
+JSValue InvokeGoClassSetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
+    return goClassSetFnHandle(ctx, this_val, argc, argv, magic);
+}
+
+JSValue InvokeGoClassGetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
+    return goClassGetFnHandle(ctx, this_val, argc, argv, magic);
+}
+
+JSValue InvokeGoClassFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
+    return goClassFnHandle(ctx, this_val, argc, argv, magic);
+}
+
 int interruptHandler(JSRuntime *rt, void *handlerArgs) {
 	return goInterruptHandler(rt, handlerArgs);
 }

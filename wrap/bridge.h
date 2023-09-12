@@ -18,6 +18,10 @@ extern JSValue InvokeAsyncProxy(JSContext *ctx, JSValueConst this_val, int argc,
 extern JSValue InvokeGoModFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
 extern int InvokeGoModInit(JSContext *ctx, JSModuleDef *m);
 
+extern JSValue InvokeGoClassSetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+extern JSValue InvokeGoClassGetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+extern JSValue InvokeGoClassFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+
 typedef struct {
     uintptr_t fn;
 } handlerArgs;

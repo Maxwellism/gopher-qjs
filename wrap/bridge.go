@@ -138,6 +138,21 @@ func goModFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C
 	return result.ref
 }
 
+//export goClassFnHandle
+func goClassFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
+	return C.JS_NewNull()
+}
+
+//export goClassGetFnHandle
+func goClassGetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
+	return C.JS_NewNull()
+}
+
+//export goClassSetFnHandle
+func goClassSetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
+	return C.JS_NewNull()
+}
+
 //export GoInitModule
 func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 	jsAtom := C.JS_GetModuleName(ctx, m)
