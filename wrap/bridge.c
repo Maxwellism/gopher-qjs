@@ -37,6 +37,37 @@ JSValue InvokeGoClassFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueC
     return goClassFnHandle(ctx, this_val, argc, argv, magic);
 }
 
+JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv, int magic) {
+    JSValue obj = JS_UNDEFINED;
+    JSValue proto;
+
+    int32_t goObjectId = goClassConstructorHandle(ctx,new_target,argc,argv,magic);
+
+    if (goObjectId<0){
+        return JS_EXCEPTION;
+    }
+
+    JS_SetPropertyStr(ctx, new_target, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
+    JS_SetPropertyStr(ctx, new_target, "_goObjectID", JS_NewInt32(ctx, goObjectId));
+
+    proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+
+    obj = JS_NewObjectProtoClass(ctx, proto, magic);
+    JS_FreeValue(ctx, proto);
+    if (JS_IsException(obj)){
+        return JS_EXCEPTION;
+    }
+    return obj;
+}
+
+void goFinalizer(JSRuntime *rt, JSValue val) {
+    goFinalizerHandle(rt,val);
+}
+
+void registerGoClass(JSContext *ctx, JSModuleDef *m) {
+    registerGoClassHandle(ctx,m);
+}
+
 int interruptHandler(JSRuntime *rt, void *handlerArgs) {
 	return goInterruptHandler(rt, handlerArgs);
 }

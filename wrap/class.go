@@ -11,7 +11,19 @@ import (
 )
 
 var jsClassLock sync.Mutex
-var jsClassMap = make(map[string]*JSClass)
+var jsClassIDMap = make(map[uint32]*JSClass)
+
+var jsClassMapGoObjectPtrLen int32
+var jsClassMapGoObjectLock sync.Mutex
+var jsClassMapGoObject = make(map[int32]interface{})
+
+func storeGoObjectPtr(v interface{}) int32 {
+	id := atomic.AddInt32(&jsClassMapGoObjectPtrLen, 1) - 1
+	jsClassMapGoObjectLock.Lock()
+	defer jsClassMapGoObjectLock.Unlock()
+	jsClassMapGoObject[id] = v
+	return id
+}
 
 var jsClassFnPtrLen int32
 var jsClassFnLock sync.Mutex
@@ -41,10 +53,13 @@ type jsClassFieldSetFnEntry struct {
 }
 
 type JSClass struct {
-	className string
-	fnIds     []int32
-	getFnIds  []int32
-	setFnIds  []int32
+	className     string
+	goClassID     uint32
+	fnIds         []int32
+	getFnIds      []int32
+	setFnIds      []int32
+	constructorFn func(ctx *Context, this Value, args []Value) interface{}
+	finalizerFn   func(goObject interface{})
 }
 
 func NewClass(className string) *JSClass {
@@ -55,8 +70,12 @@ func NewClass(className string) *JSClass {
 		className: className,
 	}
 	jsClassLock.Lock()
-	jsClassMap[className] = jsClass
-	jsClassLock.Unlock()
+
+	cGoClassID := C.JS_NewClassID(new(C.JSClassID))
+	jsClass.goClassID = uint32(cGoClassID)
+	jsClassIDMap[jsClass.goClassID] = jsClass
+
+	defer jsClassLock.Unlock()
 	return jsClass
 }
 
@@ -85,6 +104,16 @@ func (j *JSClass) storeGetClassFieldFnPtr(v *jsClassFieldGetFnEntry) int32 {
 	jsClassGetFieldFnPtrStore[id] = v
 	j.getFnIds = append(j.getFnIds, id)
 	return id
+}
+
+func (j *JSClass) SetConstructor(fn func(ctx *Context, this Value, args []Value) interface{}) {
+	//j.constructorID = j.storeConstructorPtr(fn)
+	j.constructorFn = fn
+}
+
+func (j *JSClass) SetFinalizer(fn func(obj interface{})) {
+	//j.finalizerID = j.storeFinalizerPtr(fn)
+	j.finalizerFn = fn
 }
 
 func (j *JSClass) AddClassFn(fnName string, fn func(ctx *Context, this Value, args []Value) Value) {

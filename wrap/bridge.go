@@ -153,6 +153,103 @@ func goClassSetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, ar
 	return C.JS_NewNull()
 }
 
+//export goClassConstructorHandle
+func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.int32_t {
+	refs := unsafe.Slice(argv, argc) // Go 1.17 and later
+
+	goClassId := uint32(magic)
+
+	jsGoClass := jsClassIDMap[goClassId]
+
+	if jsGoClass == nil {
+		return C.int32_t(-1)
+	}
+
+	crt := C.JS_GetRuntime(ctx)
+
+	goRuntime := &Runtime{
+		ref:  crt,
+		loop: NewLoop(),
+	}
+
+	goContext := &Context{
+		ref:     ctx,
+		runtime: goRuntime}
+
+	args := make([]Value, len(refs))
+	for i := 0; i < len(args); i++ {
+		args[i].ctx = goContext
+		args[i].ref = refs[i]
+	}
+
+	v := jsGoClass.constructorFn(goContext, Value{ctx: goContext, ref: newTarget}, args)
+	objectID := storeGoObjectPtr(v)
+
+	return C.int32_t(objectID)
+}
+
+//export goFinalizerHandle
+func goFinalizerHandle(rt *C.JSRuntime, val C.JSValue) {
+	gRt := Runtime{ref: rt}
+
+	context := gRt.NewContext()
+
+	jsVal := Value{
+		ref: val,
+		ctx: context}
+
+	goClassID := jsVal.Get("_goClassID")
+	goObjectID := jsVal.Get("_goObjectID")
+
+	jClass := jsClassIDMap[uint32(goClassID.Int32())]
+	jClass.finalizerFn(jsClassMapGoObject[goObjectID.Int32()])
+
+	delete(jsClassMapGoObject, goObjectID.Int32())
+
+	goClassID.Free()
+	goObjectID.Free()
+
+}
+
+//export registerGoClassHandle
+func registerGoClassHandle(ctx *C.JSContext, m *C.JSModuleDef) {
+	for goClassID, jsClass := range jsClassIDMap {
+		cClassID := C.JSClassID(goClassID)
+
+		def := C.JSClassDef{
+			finalizer: (*C.JSClassFinalizer)(C.goFinalizer),
+		}
+
+		goClassName := C.CString(jsClass.className)
+		defer C.free(unsafe.Pointer(goClassName))
+
+		def.class_name = goClassName
+		if ctx == nil {
+			panic(fmt.Sprintf("go class %s ctx point is null", jsClass.className))
+		}
+		C.JS_NewClass(C.JS_GetRuntime(ctx), cClassID, &def)
+
+		goProto := C.JS_NewObject(ctx)
+
+		goClass := C.JS_NewCFunctionMagic(
+			ctx,
+			(*C.JSCFunctionMagic)(unsafe.Pointer(C.goClassConstructor)),
+			goClassName,
+			0,
+			C.JS_CFUNC_constructor,
+			C.int(cClassID))
+
+		// todo fn and get set
+
+		C.JS_SetConstructor(ctx, goClass, goProto)
+		C.JS_SetClassProto(ctx, cClassID, goProto)
+
+		if m != nil {
+			C.JS_SetModuleExport(ctx, m, goClassName, goClass)
+		}
+	}
+}
+
 //export GoInitModule
 func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 	jsAtom := C.JS_GetModuleName(ctx, m)
