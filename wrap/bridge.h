@@ -24,6 +24,10 @@ extern JSValue InvokeGoClassFn(JSContext *ctx, JSValueConst this_val,int argc, J
 extern JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv, int magic);
 extern void goFinalizer(JSRuntime *rt, JSValue val);
 extern void registerGoClass(JSContext *ctx, JSModuleDef *m);
+extern void JS_NewGlobalCConstructor_Test(JSContext *ctx,
+                                             JSValue func_obj,
+                                             const char *name,
+                                             JSValueConst proto);
 
 typedef struct {
     uintptr_t fn;

@@ -281,9 +281,9 @@ func (ctx *Context) Invoke(fn Value, this Value, args ...Value) Value {
 // Eval returns a js value with given code.
 // Need call Free() `quickjs.Value`'s returned by `Eval()` and `EvalFile()` and `EvalBytecode()`.
 func (ctx *Context) Eval(code string) (Value, error) {
-	ret := ctx.evalMode(code, "code", 0)
+	ret := ctx.eval(code)
 	if ret.IsException() {
-		return ret, ret.Error()
+		return ret, ctx.Exception()
 	}
 	return ret, nil
 }

@@ -140,17 +140,104 @@ func goModFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C
 
 //export goClassFnHandle
 func goClassFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
-	return C.JS_NewNull()
+	refs := unsafe.Slice(argv, argc) // Go 1.17 and later
+
+	goClassFnId := int32(magic)
+
+	jsGoClassFn := jsClassFnPtrStore[goClassFnId]
+
+	if jsGoClassFn == nil {
+		return C.JS_NewUndefined()
+	}
+
+	crt := C.JS_GetRuntime(ctx)
+
+	goRuntime := &Runtime{
+		ref:  crt,
+		loop: NewLoop(),
+	}
+
+	goContext := &Context{
+		ref:     ctx,
+		runtime: goRuntime}
+
+	args := make([]Value, len(refs))
+	for i := 0; i < len(args); i++ {
+		args[i].ctx = goContext
+		args[i].ref = refs[i]
+	}
+
+	v := jsGoClassFn.fn(goContext, Value{ctx: goContext, ref: thisVal}, args)
+
+	return v.ref
 }
 
 //export goClassGetFnHandle
 func goClassGetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
-	return C.JS_NewNull()
+	refs := unsafe.Slice(argv, argc) // Go 1.17 and later
+
+	goClassFnId := int32(magic)
+
+	jsGoClassFieldGetFn := jsClassGetFieldFnPtrStore[goClassFnId]
+
+	if jsGoClassFieldGetFn == nil {
+		return C.JS_NewUndefined()
+	}
+
+	crt := C.JS_GetRuntime(ctx)
+
+	goRuntime := &Runtime{
+		ref:  crt,
+		loop: NewLoop(),
+	}
+
+	goContext := &Context{
+		ref:     ctx,
+		runtime: goRuntime}
+
+	args := make([]Value, len(refs))
+	for i := 0; i < len(args); i++ {
+		args[i].ctx = goContext
+		args[i].ref = refs[i]
+	}
+
+	v := jsGoClassFieldGetFn.fn(goContext, Value{ctx: goContext, ref: thisVal}, args)
+
+	return v.ref
 }
 
 //export goClassSetFnHandle
 func goClassSetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.JSValue {
-	return C.JS_NewNull()
+	refs := unsafe.Slice(argv, argc) // Go 1.17 and later
+
+	goClassFnId := int32(magic)
+
+	jsGoClassFieldSetFn := jsClassSetFieldFnPtrStore[goClassFnId]
+
+	if jsGoClassFieldSetFn == nil {
+		return C.JS_NewUndefined()
+	}
+
+	crt := C.JS_GetRuntime(ctx)
+
+	goRuntime := &Runtime{
+		ref:  crt,
+		loop: NewLoop(),
+	}
+
+	goContext := &Context{
+		ref:     ctx,
+		runtime: goRuntime}
+
+	args := make([]Value, len(refs))
+	for i := 0; i < len(args); i++ {
+		args[i].ctx = goContext
+		args[i].ref = refs[i]
+	}
+
+	v := jsGoClassFieldSetFn.fn(goContext, Value{ctx: goContext, ref: thisVal}, args)
+
+	return v.ref
 }
 
 //export goClassConstructorHandle
@@ -190,24 +277,38 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 
 //export goFinalizerHandle
 func goFinalizerHandle(rt *C.JSRuntime, val C.JSValue) {
+	//fmt.Println("finalizer")
 	gRt := Runtime{ref: rt}
+	fmt.Println(val)
 
 	context := gRt.NewContext()
 
-	jsVal := Value{
-		ref: val,
-		ctx: context}
+	//jsVal := Value{
+	//	ref: val,
+	//	ctx: context}
+	//names, err := jsVal.PropertyNames()
+	//fmt.Println(err)
+	//fmt.Println(names)
+	namePtr := C.CString("prototype")
+	defer C.free(unsafe.Pointer(namePtr))
+	proto := C.JS_GetPropertyStr(context.ref, val, namePtr)
 
-	goClassID := jsVal.Get("_goClassID")
-	goObjectID := jsVal.Get("_goObjectID")
+	v := Value{ref: proto, ctx: context}
 
-	jClass := jsClassIDMap[uint32(goClassID.Int32())]
-	jClass.finalizerFn(jsClassMapGoObject[goObjectID.Int32()])
+	goClassID := v.Get("_goClassID")
+	fmt.Println(goClassID)
+	//goObjectID := jsVal.Get("_goObjectID")
 
-	delete(jsClassMapGoObject, goObjectID.Int32())
+	//fmt.Println(goObjectID)
+	//fmt.Println(goClassID)
 
-	goClassID.Free()
-	goObjectID.Free()
+	//jClass := jsClassIDMap[uint32(goClassID.Int32())]
+	//jClass.finalizerFn(jsClassMapGoObject[goObjectID.Int32()])
+
+	//delete(jsClassMapGoObject, goObjectID.Int32())
+	//jsVal.Free()
+	//goClassID.Free()
+	//goObjectID.Free()
 
 }
 
@@ -215,7 +316,6 @@ func goFinalizerHandle(rt *C.JSRuntime, val C.JSValue) {
 func registerGoClassHandle(ctx *C.JSContext, m *C.JSModuleDef) {
 	for goClassID, jsClass := range jsClassIDMap {
 		cClassID := C.JSClassID(goClassID)
-
 		def := C.JSClassDef{
 			finalizer: (*C.JSClassFinalizer)(C.goFinalizer),
 		}
@@ -231,21 +331,40 @@ func registerGoClassHandle(ctx *C.JSContext, m *C.JSModuleDef) {
 
 		goProto := C.JS_NewObject(ctx)
 
-		goClass := C.JS_NewCFunctionMagic(
+		goClassConstructor := C.JS_NewCFunctionMagic(
 			ctx,
 			(*C.JSCFunctionMagic)(unsafe.Pointer(C.goClassConstructor)),
 			goClassName,
 			0,
-			C.JS_CFUNC_constructor,
+			C.JS_CFUNC_constructor_magic,
 			C.int(cClassID))
 
 		// todo fn and get set
+		for _, fnID := range jsClass.fnIds {
+			goFnInfo := jsClassFnPtrStore[fnID]
 
-		C.JS_SetConstructor(ctx, goClass, goProto)
-		C.JS_SetClassProto(ctx, cClassID, goProto)
+			goClassFnName := C.CString(goFnInfo.fnName)
+			defer C.free(unsafe.Pointer(goClassFnName))
+
+			goFnObj := C.JS_NewCFunctionMagic(
+				ctx,
+				(*C.JSCFunctionMagic)(unsafe.Pointer(C.InvokeGoClassFn)),
+				goClassFnName,
+				0,
+				C.JS_CFUNC_generic_magic,
+				C.int(fnID))
+
+			C.JS_SetPropertyStr(ctx, goProto, goClassFnName, goFnObj)
+		}
+
+		//C.JS_SetConstructor(ctx, goClassConstructor, goProto)
+		//C.JS_SetClassProto(ctx, cClassID, goProto)
 
 		if m != nil {
-			C.JS_SetModuleExport(ctx, m, goClassName, goClass)
+			//C.JS_SetModuleExport(ctx, m, goClassName, goClassConstructor)
+		} else {
+			C.JS_SetClassProto(ctx, cClassID, goProto)
+			C.JS_NewGlobalCConstructor_Test(ctx, goClassConstructor, goClassName, goProto)
 		}
 	}
 }

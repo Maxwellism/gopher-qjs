@@ -72,6 +72,8 @@ func (r Runtime) NewContext() *Context {
 	C.JS_EnableBignumExt(ref, C.int(1))
 	loadPreludeModules(ref)
 
+	C.registerGoClass(ref, nil)
+
 	for _, m := range r.goModList {
 		m.buildModule(ref)
 	}

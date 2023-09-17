@@ -47,14 +47,16 @@ JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JS
         return JS_EXCEPTION;
     }
 
-    JS_SetPropertyStr(ctx, new_target, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
-    JS_SetPropertyStr(ctx, new_target, "_goObjectID", JS_NewInt32(ctx, goObjectId));
-
     proto = JS_GetPropertyStr(ctx, new_target, "prototype");
 
     obj = JS_NewObjectProtoClass(ctx, proto, magic);
+
+    JS_SetPropertyStr(ctx, proto, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
+    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewInt32(ctx, goObjectId));
+
     JS_FreeValue(ctx, proto);
     if (JS_IsException(obj)){
+        JS_FreeValue(ctx, obj);
         return JS_EXCEPTION;
     }
     return obj;
@@ -116,4 +118,18 @@ JSModuleDef *js_my_module_loader(JSContext *ctx,
 
 int InvokeGoModInit(JSContext *ctx, JSModuleDef *m) {
     return GoInitModule(ctx,m);
+}
+
+void JS_NewGlobalCConstructor_Test(JSContext *ctx,
+                                      JSValue func_obj,
+                                      const char *name,
+                                      JSValueConst proto)
+{
+    JSValue global =  JS_GetGlobalObject(ctx);
+    JS_DefinePropertyValueStr(ctx, global, name,
+                           JS_DupValue(ctx, func_obj),
+                           JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+    JS_FreeValue(ctx, global);
+    JS_SetConstructor(ctx, func_obj, proto);
+    JS_FreeValue(ctx, func_obj);
 }
