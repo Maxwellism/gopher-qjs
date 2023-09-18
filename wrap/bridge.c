@@ -47,23 +47,39 @@ JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JS
         return JS_EXCEPTION;
     }
 
+    GoClassObjectInfo *goClassObjectInfo;
+
+    goClassObjectInfo = js_mallocz(ctx, sizeof(*goClassObjectInfo));
+    if (!goClassObjectInfo)
+        return JS_EXCEPTION;
+
+    goClassObjectInfo->objectId = goObjectId;
+    goClassObjectInfo->goClassID = magic;
+
     proto = JS_GetPropertyStr(ctx, new_target, "prototype");
 
     obj = JS_NewObjectProtoClass(ctx, proto, magic);
 
-    JS_SetPropertyStr(ctx, proto, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
-    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewInt32(ctx, goObjectId));
+//    JS_SetPropertyStr(ctx, proto, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
+//    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewInt32(ctx, goObjectId));
 
     JS_FreeValue(ctx, proto);
     if (JS_IsException(obj)){
         JS_FreeValue(ctx, obj);
+        js_free(ctx, goClassObjectInfo);
         return JS_EXCEPTION;
     }
+    JS_SetOpaque(obj, goClassObjectInfo);
     return obj;
 }
 
 void goFinalizer(JSRuntime *rt, JSValue val) {
-    goFinalizerHandle(rt,val);
+
+    GoClassObjectInfo *goClassObjectInfo = JS_UnsafeGetOpaque(val);
+//    printf("go object id:%d\n", goClassObject->objectId);
+    goFinalizerHandle(goClassObjectInfo->goClassID, goClassObjectInfo->objectId);
+
+    js_free_rt(rt,goClassObjectInfo);
 }
 
 void registerGoClass(JSContext *ctx, JSModuleDef *m) {

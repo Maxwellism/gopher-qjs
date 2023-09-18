@@ -276,12 +276,16 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 }
 
 //export goFinalizerHandle
-func goFinalizerHandle(rt *C.JSRuntime, val C.JSValue) {
-	//fmt.Println("finalizer")
-	gRt := Runtime{ref: rt}
-	fmt.Println(val)
+func goFinalizerHandle(goClassID C.int, goObjectID C.int32_t) {
 
-	context := gRt.NewContext()
+	objectID := int32(goObjectID)
+
+	classID := uint32(goClassID)
+
+	jClass := jsClassIDMap[classID]
+	jClass.finalizerFn(jsClassMapGoObject[objectID])
+
+	delete(jsClassMapGoObject, objectID)
 
 	//jsVal := Value{
 	//	ref: val,
@@ -289,14 +293,14 @@ func goFinalizerHandle(rt *C.JSRuntime, val C.JSValue) {
 	//names, err := jsVal.PropertyNames()
 	//fmt.Println(err)
 	//fmt.Println(names)
-	namePtr := C.CString("prototype")
-	defer C.free(unsafe.Pointer(namePtr))
-	proto := C.JS_GetPropertyStr(context.ref, val, namePtr)
+	//namePtr := C.CString("prototype")
+	//defer C.free(unsafe.Pointer(namePtr))
+	//proto := C.JS_GetPropertyStr(context.ref, val, namePtr)
 
-	v := Value{ref: proto, ctx: context}
+	//v := Value{ref: proto, ctx: context}
 
-	goClassID := v.Get("_goClassID")
-	fmt.Println(goClassID)
+	//goClassID := v.Get("_goClassID")
+	//fmt.Println(goClassID)
 	//goObjectID := jsVal.Get("_goObjectID")
 
 	//fmt.Println(goObjectID)

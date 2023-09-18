@@ -33,6 +33,11 @@ typedef struct {
     uintptr_t fn;
 } handlerArgs;
 
+typedef struct {
+    int goClassID;
+    int32_t objectId;
+} GoClassObjectInfo;
+
 extern void SetInterruptHandler(JSRuntime *rt, void *handlerArgs);
 
 extern int getValTag(JSValueConst v);
