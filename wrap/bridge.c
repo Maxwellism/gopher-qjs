@@ -25,6 +25,51 @@ JSValue InvokeGoModFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueCon
     return goModFnHandle(ctx, this_val, argc, argv, magic);
 }
 
+JSValue InvokeGoClassSetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
+    return goClassSetFnHandle(ctx, this_val, argc, argv, magic);
+}
+
+JSValue InvokeGoClassGetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
+    return goClassGetFnHandle(ctx, this_val, argc, argv, magic);
+}
+
+JSValue InvokeGoClassFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic) {
+    return goClassFnHandle(ctx, this_val, argc, argv, magic);
+}
+
+JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv, int magic) {
+    JSValue obj = JS_UNDEFINED;
+    JSValue proto;
+
+    int32_t goObjectId = goClassConstructorHandle(ctx,new_target,argc,argv,magic);
+
+    if (goObjectId<0){
+        return JS_EXCEPTION;
+    }
+
+    proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+
+    obj = JS_NewObjectProtoClass(ctx, proto, magic);
+
+    JS_SetPropertyStr(ctx, proto, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
+    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewInt32(ctx, goObjectId));
+
+    JS_FreeValue(ctx, proto);
+    if (JS_IsException(obj)){
+        JS_FreeValue(ctx, obj);
+        return JS_EXCEPTION;
+    }
+    return obj;
+}
+
+void goFinalizer(JSRuntime *rt, JSValue val) {
+    goFinalizerHandle(rt,val);
+}
+
+void registerGoClass(JSContext *ctx, JSModuleDef *m) {
+    registerGoClassHandle(ctx,m);
+}
+
 int interruptHandler(JSRuntime *rt, void *handlerArgs) {
 	return goInterruptHandler(rt, handlerArgs);
 }
@@ -73,4 +118,18 @@ JSModuleDef *js_my_module_loader(JSContext *ctx,
 
 int InvokeGoModInit(JSContext *ctx, JSModuleDef *m) {
     return GoInitModule(ctx,m);
+}
+
+void JS_NewGlobalCConstructor_Test(JSContext *ctx,
+                                      JSValue func_obj,
+                                      const char *name,
+                                      JSValueConst proto)
+{
+    JSValue global =  JS_GetGlobalObject(ctx);
+    JS_DefinePropertyValueStr(ctx, global, name,
+                           JS_DupValue(ctx, func_obj),
+                           JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+    JS_FreeValue(ctx, global);
+    JS_SetConstructor(ctx, func_obj, proto);
+    JS_FreeValue(ctx, func_obj);
 }

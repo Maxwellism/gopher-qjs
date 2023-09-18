@@ -18,6 +18,17 @@ extern JSValue InvokeAsyncProxy(JSContext *ctx, JSValueConst this_val, int argc,
 extern JSValue InvokeGoModFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
 extern int InvokeGoModInit(JSContext *ctx, JSModuleDef *m);
 
+extern JSValue InvokeGoClassSetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+extern JSValue InvokeGoClassGetFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+extern JSValue InvokeGoClassFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
+extern JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv, int magic);
+extern void goFinalizer(JSRuntime *rt, JSValue val);
+extern void registerGoClass(JSContext *ctx, JSModuleDef *m);
+extern void JS_NewGlobalCConstructor_Test(JSContext *ctx,
+                                             JSValue func_obj,
+                                             const char *name,
+                                             JSValueConst proto);
+
 typedef struct {
     uintptr_t fn;
 } handlerArgs;
