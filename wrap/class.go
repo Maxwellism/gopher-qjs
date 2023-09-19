@@ -10,11 +10,10 @@ import (
 	"sync/atomic"
 )
 
-var jsGlobalClassLock sync.Mutex
-var jsGlobalClassIDMap = make(map[uint32]*JSClass)
+var jsClassLock sync.Mutex
+var jsClassIDMap = make(map[uint32]*JSClass)
 
-var jsModClassLock sync.Mutex
-var jsModClassIDMap = make(map[uint32]*JSClass)
+var jsGlobalClassIDMap = make(map[uint32]*JSClass)
 
 var jsClassMapGoObjectPtrLen int32
 var jsClassMapGoObjectLock sync.Mutex
@@ -47,11 +46,6 @@ type jsClassFieldFnEntry struct {
 	setFn     func(ctx *Context, this Value, args []Value) Value
 }
 
-type jsClassFieldSetFnEntry struct {
-	fieldName string
-	fn        func(ctx *Context, this Value, args []Value) Value
-}
-
 type JSClass struct {
 	className     string
 	goClassID     uint32
@@ -67,13 +61,15 @@ func newGlobalClass(className string) *JSClass {
 		fieldFn:   make(map[string]*int32),
 		className: className,
 	}
-	jsGlobalClassLock.Lock()
+	jsClassLock.Lock()
 
 	cGoClassID := C.JS_NewClassID(new(C.JSClassID))
 	jsClass.goClassID = uint32(cGoClassID)
+	jsClassIDMap[jsClass.goClassID] = jsClass
+
 	jsGlobalClassIDMap[jsClass.goClassID] = jsClass
 
-	defer jsGlobalClassLock.Unlock()
+	defer jsClassLock.Unlock()
 	return jsClass
 }
 
@@ -83,13 +79,12 @@ func newModClass(className string) *JSClass {
 		fieldFn:   make(map[string]*int32),
 		className: className,
 	}
-	jsModClassLock.Lock()
+	jsClassLock.Lock()
 
 	cGoClassID := C.JS_NewClassID(new(C.JSClassID))
 	jsClass.goClassID = uint32(cGoClassID)
-	jsModClassIDMap[jsClass.goClassID] = jsClass
-
-	defer jsModClassLock.Unlock()
+	jsClassIDMap[jsClass.goClassID] = jsClass
+	defer jsClassLock.Unlock()
 	return jsClass
 }
 
