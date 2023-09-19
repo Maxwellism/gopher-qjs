@@ -72,7 +72,7 @@ func (r Runtime) NewContext() *Context {
 	C.JS_EnableBignumExt(ref, C.int(1))
 	loadPreludeModules(ref)
 
-	C.registerGoClass(ref, nil)
+	C.registerGoClass(ref)
 
 	for _, m := range r.goModList {
 		m.buildModule(ref)
@@ -149,4 +149,10 @@ func (r Runtime) ExecuteAllPendingJobs() error {
 // AddGoMod add go module
 func (r *Runtime) AddGoMod(m *JSModule) {
 	r.goModList = append(r.goModList, m)
+}
+
+// CreateGlobalClass add context global class
+func (r *Runtime) CreateGlobalClass(className string) *JSClass {
+	jsClass := newGlobalClass(className)
+	return jsClass
 }

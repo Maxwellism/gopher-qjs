@@ -82,8 +82,8 @@ void goFinalizer(JSRuntime *rt, JSValue val) {
     js_free_rt(rt,goClassObjectInfo);
 }
 
-void registerGoClass(JSContext *ctx, JSModuleDef *m) {
-    registerGoClassHandle(ctx,m);
+void registerGoClass(JSContext *ctx) {
+    registerGoClassHandle(ctx);
 }
 
 int interruptHandler(JSRuntime *rt, void *handlerArgs) {
@@ -136,7 +136,7 @@ int InvokeGoModInit(JSContext *ctx, JSModuleDef *m) {
     return GoInitModule(ctx,m);
 }
 
-void JS_NewGlobalCConstructor_Test(JSContext *ctx,
+void JS_NewGlobalCConstructorHandle(JSContext *ctx,
                                       JSValue func_obj,
                                       const char *name,
                                       JSValueConst proto)

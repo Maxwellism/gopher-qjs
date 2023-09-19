@@ -13,8 +13,11 @@ type ExampleObject struct {
 }
 
 func TestNewClass(t *testing.T) {
+	rt := quickjs.NewRuntime()
+	defer rt.Close()
+
 	var classObject *ExampleObject
-	class := quickjs.NewClass("classTest")
+	class := rt.CreateGlobalClass("classTest")
 	class.SetConstructor(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
 		fmt.Println("=========start Constructor==========")
 		if len(args) < 2 {
@@ -49,9 +52,6 @@ func TestNewClass(t *testing.T) {
 	class.AddClassGetFn("Age", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
 		return ctx.Int32(classObject.Age)
 	})
-
-	rt := quickjs.NewRuntime()
-	defer rt.Close()
 
 	// Create a new context
 	ctx := rt.NewContext()

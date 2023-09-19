@@ -296,7 +296,7 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 
 	goClassId := uint32(magic)
 
-	jsGoClass := jsClassIDMap[goClassId]
+	jsGoClass := jsGlobalClassIDMap[goClassId]
 
 	if jsGoClass == nil {
 		return C.int32_t(-1)
@@ -339,7 +339,7 @@ func goFinalizerHandle(goClassID C.int, goObjectID C.int32_t) {
 
 	classID := uint32(goClassID)
 
-	jClass := jsClassIDMap[classID]
+	jClass := jsGlobalClassIDMap[classID]
 	jClass.finalizerFn(jsClassMapGoObject[objectID])
 
 	delete(jsClassMapGoObject, objectID)
@@ -347,7 +347,7 @@ func goFinalizerHandle(goClassID C.int, goObjectID C.int32_t) {
 }
 
 //export registerGoClassHandle
-func registerGoClassHandle(ctx *C.JSContext, m *C.JSModuleDef) {
+func registerGoClassHandle(ctx *C.JSContext) {
 	defer func() {
 		if err := recover(); err != nil {
 			buf := make([]byte, 4096)
@@ -355,7 +355,7 @@ func registerGoClassHandle(ctx *C.JSContext, m *C.JSModuleDef) {
 			fmt.Printf("Go panic: %v\n%s", err, buf)
 		}
 	}()
-	for goClassID, jsClass := range jsClassIDMap {
+	for goClassID, jsClass := range jsGlobalClassIDMap {
 		cClassID := C.JSClassID(goClassID)
 		def := C.JSClassDef{
 			finalizer: (*C.JSClassFinalizer)(C.goFinalizer),
@@ -424,14 +424,14 @@ func registerGoClassHandle(ctx *C.JSContext, m *C.JSModuleDef) {
 		//C.JS_SetConstructor(ctx, goClassConstructor, goProto)
 		//C.JS_SetClassProto(ctx, cClassID, goProto)
 
-		if m != nil {
-			C.JS_SetConstructor(ctx, goClassConstructor, goProto)
-			C.JS_SetClassProto(ctx, cClassID, goProto)
-			C.JS_SetModuleExport(ctx, m, goClassName, goClassConstructor)
-		} else {
-			C.JS_SetClassProto(ctx, cClassID, goProto)
-			C.JS_NewGlobalCConstructor_Test(ctx, goClassConstructor, goClassName, goProto)
-		}
+		//if m != nil {
+		//	C.JS_SetConstructor(ctx, goClassConstructor, goProto)
+		//	C.JS_SetClassProto(ctx, cClassID, goProto)
+		//	C.JS_SetModuleExport(ctx, m, goClassName, goClassConstructor)
+		//} else {
+		C.JS_SetClassProto(ctx, cClassID, goProto)
+		C.JS_NewGlobalCConstructorHandle(ctx, goClassConstructor, goClassName, goProto)
+		//}
 	}
 }
 
