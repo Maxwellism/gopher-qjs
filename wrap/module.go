@@ -6,6 +6,8 @@ package quickjs
 */
 import "C"
 import (
+	"fmt"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -24,14 +26,15 @@ var goModFnLock sync.Mutex
 var goModFnPtrStore = make(map[int32]*moduleFuncEntry)
 
 type JSModule struct {
-	modName string
-	ids     []int32
+	modName     string
+	fnIDList    []int32
+	classIDList []uint32
 }
 
 func NewMod(modName string) *JSModule {
 	m := &JSModule{
-		ids:     []int32{},
-		modName: modName,
+		fnIDList: []int32{},
+		modName:  modName,
 	}
 	goModLock.Lock()
 	moduleMap[modName] = m
@@ -44,7 +47,7 @@ func (m *JSModule) storeFuncModPtr(v *moduleFuncEntry) int32 {
 	goModFnLock.Lock()
 	defer goModFnLock.Unlock()
 	goModFnPtrStore[id] = v
-	m.ids = append(m.ids, id)
+	m.fnIDList = append(m.fnIDList, id)
 	return id
 }
 
@@ -63,6 +66,13 @@ func (m *JSModule) AddExportFn(fnName string, fn func(ctx *Context, this Value, 
 }
 
 func (m *JSModule) buildModule(ctx *C.JSContext) {
+	defer func() {
+		if err := recover(); err != nil {
+			buf := make([]byte, 4096)
+			runtime.Stack(buf, false)
+			fmt.Printf("Go panic: %v\n%s", err, buf)
+		}
+	}()
 	cStr := C.CString(m.modName)
 	defer C.free(unsafe.Pointer(cStr))
 	// JSModuleInitFunc
@@ -74,7 +84,7 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 		cStr,
 		(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoModInit)))
 
-	for _, id := range m.ids {
+	for _, id := range m.fnIDList {
 		fnInfo := restoreFuncModPtr(id)
 		goStr := fnInfo.fnName
 		cStr1 := C.CString(goStr)
@@ -82,4 +92,18 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 		C.JS_AddModuleExport(ctx, cmod, cStr1)
 	}
 
+	for _, classID := range m.classIDList {
+		jsClass := jsClassIDMap[classID]
+		goStr := jsClass.className
+		cStr1 := C.CString(goStr)
+		defer C.free(unsafe.Pointer(cStr1))
+		C.JS_AddModuleExport(ctx, cmod, cStr1)
+	}
+
+}
+
+func (m *JSModule) CreateExportClass(className string) *JSClass {
+	jsClass := newModClass(className)
+	m.classIDList = append(m.classIDList, jsClass.goClassID)
+	return jsClass
 }

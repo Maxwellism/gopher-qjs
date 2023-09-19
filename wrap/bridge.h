@@ -23,8 +23,8 @@ extern JSValue InvokeGoClassGetFn(JSContext *ctx, JSValueConst this_val,int argc
 extern JSValue InvokeGoClassFn(JSContext *ctx, JSValueConst this_val,int argc, JSValueConst *argv, int magic);
 extern JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv, int magic);
 extern void goFinalizer(JSRuntime *rt, JSValue val);
-extern void registerGoClass(JSContext *ctx, JSModuleDef *m);
-extern void JS_NewGlobalCConstructor_Test(JSContext *ctx,
+extern void registerGoClass(JSContext *ctx);
+extern void JS_NewGlobalCConstructorHandle(JSContext *ctx,
                                              JSValue func_obj,
                                              const char *name,
                                              JSValueConst proto);
@@ -32,6 +32,11 @@ extern void JS_NewGlobalCConstructor_Test(JSContext *ctx,
 typedef struct {
     uintptr_t fn;
 } handlerArgs;
+
+typedef struct {
+    int goClassID;
+    int32_t objectId;
+} GoClassObjectInfo;
 
 extern void SetInterruptHandler(JSRuntime *rt, void *handlerArgs);
 

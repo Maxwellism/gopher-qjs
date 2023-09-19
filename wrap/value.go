@@ -207,7 +207,7 @@ func (v Value) ByteLen() int64 {
 	return v.Get("byteLength").Int64()
 }
 
-// Set sets the value of the property with the given name.
+// Set sets the value of the property with the given Name.
 func (v Value) Set(name string, val Value) {
 	namePtr := C.CString(name)
 	defer C.free(unsafe.Pointer(namePtr))
@@ -219,7 +219,7 @@ func (v Value) SetIdx(idx int64, val Value) {
 	C.JS_SetPropertyUint32(v.ctx.ref, v.ref, C.uint32_t(idx), val.ref)
 }
 
-// Get returns the value of the property with the given name.
+// Get returns the value of the property with the given Name.
 func (v Value) Get(name string) Value {
 	namePtr := C.CString(name)
 	defer C.free(unsafe.Pointer(namePtr))
@@ -237,7 +237,7 @@ func (v Value) Call(fname string, args ...Value) Value {
 		return v.ctx.Error(errors.New("Object not a object"))
 	}
 
-	fn := v.Get(fname) // get the function by name
+	fn := v.Get(fname) // get the function by Name
 	defer fn.Free()
 
 	if !fn.IsFunction() {
@@ -305,7 +305,7 @@ func (v Value) PropertyNames() ([]string, error) {
 	return names, nil
 }
 
-// Has returns true if the value has the property with the given name.
+// Has returns true if the value has the property with the given Name.
 func (v Value) Has(name string) bool {
 	prop := v.ctx.Atom(name)
 	defer prop.Free()
@@ -319,7 +319,7 @@ func (v Value) HasIdx(idx int64) bool {
 	return C.JS_HasProperty(v.ctx.ref, v.ref, prop.ref) == 1
 }
 
-// Delete deletes the property with the given name.
+// Delete deletes the property with the given Name.
 func (v Value) Delete(name string) bool {
 	prop := v.ctx.Atom(name)
 	defer prop.Free()

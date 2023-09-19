@@ -51,7 +51,7 @@ jobs:
       
     - name: Prebuild for mac
       if: matrix.platform == 'macos-11'
-      run: rm -rf wrap/deps/libs/darwin_* && cp -a deps/Makefile wrap/deps/quickjs
+      run: rm -rf wrap/deps/libs/darwin_* && cp -a wrap/deps/Makefile wrap/deps/quickjs
 
     - name: Build darwin amd64 
       if: matrix.platform == 'macos-11'
