@@ -15,8 +15,8 @@ func TestModule(t *testing.T) {
 	})
 	m.AddExportFn("fnTest1", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
 		val := ctx.Object()
-		val.Set("name", ctx.String("boy"))
-		val.Set("age", ctx.Int32(32))
+		val.Set("Name", ctx.String("boy"))
+		val.Set("Age", ctx.Int32(32))
 		return val
 	})
 

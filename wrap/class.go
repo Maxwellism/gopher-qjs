@@ -29,22 +29,19 @@ var jsClassFnPtrLen int32
 var jsClassFnLock sync.Mutex
 var jsClassFnPtrStore = make(map[int32]*jsClassFnEntry)
 
-var jsClassGetFnPtrLen int32
-var jsClassGetFnLock sync.Mutex
-var jsClassGetFieldFnPtrStore = make(map[int32]*jsClassFieldGetFnEntry)
-
-var jsClassSetFnPtrLen int32
-var jsClassSetFnLock sync.Mutex
-var jsClassSetFieldFnPtrStore = make(map[int32]*jsClassFieldSetFnEntry)
+var jsClassFieldFnPtrLen int32
+var jsClassFieldFnLock sync.Mutex
+var jsClassFieldFnPtrStore = make(map[int32]*jsClassFieldFnEntry)
 
 type jsClassFnEntry struct {
 	fnName string
 	fn     func(ctx *Context, this Value, args []Value) Value
 }
 
-type jsClassFieldGetFnEntry struct {
+type jsClassFieldFnEntry struct {
 	fieldName string
-	fn        func(ctx *Context, this Value, args []Value) Value
+	getFn     func(ctx *Context, this Value, args []Value) Value
+	setFn     func(ctx *Context, this Value, args []Value) Value
 }
 
 type jsClassFieldSetFnEntry struct {
@@ -56,8 +53,7 @@ type JSClass struct {
 	className     string
 	goClassID     uint32
 	fnIds         []int32
-	getFnIds      []int32
-	setFnIds      []int32
+	fieldFn       map[string]*int32
 	constructorFn func(ctx *Context, this Value, args []Value) interface{}
 	finalizerFn   func(goObject interface{})
 }
@@ -65,8 +61,7 @@ type JSClass struct {
 func NewClass(className string) *JSClass {
 	jsClass := &JSClass{
 		fnIds:     []int32{},
-		getFnIds:  []int32{},
-		setFnIds:  []int32{},
+		fieldFn:   make(map[string]*int32),
 		className: className,
 	}
 	jsClassLock.Lock()
@@ -88,31 +83,21 @@ func (j *JSClass) storeFuncClassPtr(v *jsClassFnEntry) int32 {
 	return id
 }
 
-func (j *JSClass) storeSetClassFieldFnPtr(v *jsClassFieldSetFnEntry) int32 {
-	id := atomic.AddInt32(&jsClassSetFnPtrLen, 1) - 1
-	jsClassSetFnLock.Lock()
-	defer jsClassSetFnLock.Unlock()
-	jsClassSetFieldFnPtrStore[id] = v
-	j.setFnIds = append(j.setFnIds, id)
-	return id
-}
-
-func (j *JSClass) storeGetClassFieldFnPtr(v *jsClassFieldGetFnEntry) int32 {
-	id := atomic.AddInt32(&jsClassGetFnPtrLen, 1) - 1
-	jsClassGetFnLock.Lock()
-	defer jsClassGetFnLock.Unlock()
-	jsClassGetFieldFnPtrStore[id] = v
-	j.getFnIds = append(j.getFnIds, id)
+func storeClassFieldFnPtr(v *jsClassFieldFnEntry) int32 {
+	id := atomic.AddInt32(&jsClassFieldFnPtrLen, 1) - 1
+	jsClassFieldFnLock.Lock()
+	defer jsClassFieldFnLock.Unlock()
+	jsClassFieldFnPtrStore[id] = v
 	return id
 }
 
 func (j *JSClass) SetConstructor(fn func(ctx *Context, this Value, args []Value) interface{}) {
-	//j.constructorID = j.storeConstructorPtr(fn)
+	//j.constructorID = j.storeConstructorPtr(getFn)
 	j.constructorFn = fn
 }
 
 func (j *JSClass) SetFinalizer(fn func(obj interface{})) {
-	//j.finalizerID = j.storeFinalizerPtr(fn)
+	//j.finalizerID = j.storeFinalizerPtr(getFn)
 	j.finalizerFn = fn
 }
 
@@ -125,17 +110,30 @@ func (j *JSClass) AddClassFn(fnName string, fn func(ctx *Context, this Value, ar
 }
 
 func (j *JSClass) AddClassGetFn(fieldName string, fn func(ctx *Context, this Value, args []Value) Value) {
-	classFnEntry := &jsClassFieldGetFnEntry{
-		fn:        fn,
-		fieldName: fieldName,
+	if id := j.fieldFn[fieldName]; id == nil {
+		classFnEntry := &jsClassFieldFnEntry{
+			getFn:     fn,
+			fieldName: fieldName,
+		}
+		fnId := storeClassFieldFnPtr(classFnEntry)
+		j.fieldFn[fieldName] = &fnId
+	} else {
+		classFnEntry := jsClassFieldFnPtrStore[*id]
+		classFnEntry.getFn = fn
 	}
-	j.storeGetClassFieldFnPtr(classFnEntry)
+
 }
 
 func (j *JSClass) AddClassSetFn(fieldName string, fn func(ctx *Context, this Value, args []Value) Value) {
-	classFnEntry := &jsClassFieldSetFnEntry{
-		fn:        fn,
-		fieldName: fieldName,
+	if id := j.fieldFn[fieldName]; id == nil {
+		classFnEntry := &jsClassFieldFnEntry{
+			setFn:     fn,
+			fieldName: fieldName,
+		}
+		fnId := storeClassFieldFnPtr(classFnEntry)
+		j.fieldFn[fieldName] = &fnId
+	} else {
+		classFnEntry := jsClassFieldFnPtrStore[*id]
+		classFnEntry.setFn = fn
 	}
-	j.storeSetClassFieldFnPtr(classFnEntry)
 }
