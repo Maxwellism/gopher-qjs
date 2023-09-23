@@ -341,6 +341,14 @@ func (v Value) globalInstanceof(name string) bool {
 	return C.JS_IsInstanceOf(v.ctx.ref, v.ref, ctor.ref) == 1
 }
 
+func (v Value) GetGoObject() (interface{}, error) {
+	goObjectID := int32(C.getGoObjectID(v.ref))
+	if goObjectID < 0 {
+		return nil, errors.New("the value there is no corresponding go object")
+	}
+	return jsClassMapGoObject[goObjectID], nil
+}
+
 func (v Value) IsNumber() bool        { return C.JS_IsNumber(v.ref) == 1 }
 func (v Value) IsBigInt() bool        { return C.JS_IsBigInt(v.ctx.ref, v.ref) == 1 }
 func (v Value) IsBigFloat() bool      { return C.JS_IsBigFloat(v.ref) == 1 }

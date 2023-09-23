@@ -28,6 +28,7 @@ extern void JS_NewGlobalCConstructorHandle(JSContext *ctx,
                                              JSValue func_obj,
                                              const char *name,
                                              JSValueConst proto);
+extern int32_t getGoObjectID(JSValue val);
 
 typedef struct {
     uintptr_t fn;

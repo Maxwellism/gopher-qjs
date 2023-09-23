@@ -2,11 +2,7 @@ module github.com/Maxwellism/gopher-qjs
 
 go 1.20
 
-require (
-	github.com/buke/quickjs-go v0.1.14
-	github.com/buke/quickjs-go-polyfill v0.0.5
-	github.com/stretchr/testify v1.8.4
-)
+require github.com/stretchr/testify v1.8.4
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
