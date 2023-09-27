@@ -179,24 +179,13 @@ func goClassFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv 
 		return C.JS_NewUndefined()
 	}
 
-	crt := C.JS_GetRuntime(ctx)
-
-	goRuntime := &Runtime{
-		ref:  crt,
-		loop: NewLoop(),
-	}
-
-	goContext := &Context{
-		ref:     ctx,
-		runtime: goRuntime}
-
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
-		args[i].ctx = goContext
+		args[i].ctx = jsGoClassFn.ctx
 		args[i].ref = refs[i]
 	}
 
-	v := jsGoClassFn.fn(goContext, Value{ctx: goContext, ref: thisVal}, args)
+	v := jsGoClassFn.fn(jsGoClassFn.ctx, Value{ctx: jsGoClassFn.ctx, ref: thisVal}, args)
 
 	return v.ref
 }
@@ -220,24 +209,13 @@ func goClassGetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, ar
 		return C.JS_NewUndefined()
 	}
 
-	crt := C.JS_GetRuntime(ctx)
-
-	goRuntime := &Runtime{
-		ref:  crt,
-		loop: NewLoop(),
-	}
-
-	goContext := &Context{
-		ref:     ctx,
-		runtime: goRuntime}
-
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
-		args[i].ctx = goContext
+		args[i].ctx = jsGoClassFieldGetFn.ctx
 		args[i].ref = refs[i]
 	}
 
-	v := jsGoClassFieldGetFn.getFn(goContext, Value{ctx: goContext, ref: thisVal}, args)
+	v := jsGoClassFieldGetFn.getFn(jsGoClassFieldGetFn.ctx, Value{ctx: jsGoClassFieldGetFn.ctx, ref: thisVal}, args)
 
 	return v.ref
 }
@@ -261,24 +239,13 @@ func goClassSetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, ar
 		return C.JS_NewUndefined()
 	}
 
-	crt := C.JS_GetRuntime(ctx)
-
-	goRuntime := &Runtime{
-		ref:  crt,
-		loop: NewLoop(),
-	}
-
-	goContext := &Context{
-		ref:     ctx,
-		runtime: goRuntime}
-
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
-		args[i].ctx = goContext
+		args[i].ctx = jsGoClassFieldSetFn.ctx
 		args[i].ref = refs[i]
 	}
 
-	v := jsGoClassFieldSetFn.setFn(goContext, Value{ctx: goContext, ref: thisVal}, args)
+	v := jsGoClassFieldSetFn.setFn(jsGoClassFieldSetFn.ctx, Value{ctx: jsGoClassFieldSetFn.ctx, ref: thisVal}, args)
 
 	return v.ref
 }
@@ -302,24 +269,13 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 		return C.int32_t(-1)
 	}
 
-	crt := C.JS_GetRuntime(ctx)
-
-	goRuntime := &Runtime{
-		ref:  crt,
-		loop: NewLoop(),
-	}
-
-	goContext := &Context{
-		ref:     ctx,
-		runtime: goRuntime}
-
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
-		args[i].ctx = goContext
+		args[i].ctx = jsGoClass.ctx
 		args[i].ref = refs[i]
 	}
 
-	v := jsGoClass.constructorFn(goContext, Value{ctx: goContext, ref: newTarget}, args)
+	v := jsGoClass.constructorFn(jsGoClass.ctx, Value{ctx: jsGoClass.ctx, ref: newTarget}, args)
 	objectID := storeGoObjectPtr(v)
 
 	return C.int32_t(objectID)
@@ -385,8 +341,19 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 		C.JS_CFUNC_constructor_magic,
 		C.int(cClassID))
 
+	crt := C.JS_GetRuntime(ctx)
+
+	goRuntime := &Runtime{
+		ref:  crt,
+		loop: NewLoop(),
+	}
+	jsClass.ctx = &Context{ref: ctx, runtime: goRuntime}
+	jsClass.constructorFnObj = &Value{ctx: jsClass.ctx, ref: goClassConstructor}
+
 	for _, fnID := range jsClass.fnIds {
 		goFnInfo := jsClassFnPtrStore[fnID]
+
+		goFnInfo.ctx = jsClass.ctx
 
 		goClassFnName := C.CString(goFnInfo.fnName)
 		defer C.free(unsafe.Pointer(goClassFnName))
@@ -403,6 +370,10 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 	}
 
 	for fieldName, id := range jsClass.fieldFn {
+
+		fieldInfo := jsClassFieldFnPtrStore[*id]
+		fieldInfo.ctx = jsClass.ctx
+
 		goClassFieldName := C.CString(fieldName)
 		defer C.free(unsafe.Pointer(goClassFieldName))
 

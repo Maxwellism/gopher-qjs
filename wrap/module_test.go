@@ -101,3 +101,62 @@ func TestModClass(t *testing.T) {
 	}
 	defer res.Free()
 }
+
+func TestCreateModClassObject(t *testing.T) {
+	var classObject *ExampleObject
+
+	m := quickjs.NewMod("module_test")
+
+	class := m.CreateExportClass("classTest")
+
+	class.SetConstructor(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
+		fmt.Println("=========start Constructor==========")
+		if len(args) < 2 {
+			panic("Constructor arg len is < 1")
+		}
+		if classObject == nil {
+			classObject = &ExampleObject{}
+		}
+		classObject.Name = args[0].String()
+		classObject.Age = args[1].Int32()
+		return classObject
+	})
+	class.SetFinalizer(func(obj interface{}) {
+		fmt.Println("=========finalizer=======")
+		data, err := json.Marshal(obj)
+		if err != nil {
+			fmt.Println(err)
+			panic(err)
+		}
+		fmt.Println("go object value is:", string(data))
+	})
+
+	rt := quickjs.NewRuntime()
+	defer rt.Close()
+	rt.AddGoMod(m)
+
+	// Create a new context
+	ctx := rt.NewContext()
+	defer ctx.Close()
+
+	res, err := ctx.EvalFile("./examples/my_module_class_test.js")
+	if err != nil {
+		panic(err)
+	}
+	defer res.Free()
+
+	goClassObjectValue := class.CreateGoJsClassObject(ctx.String("test Name 1"), ctx.Int32(23))
+	defer goClassObjectValue.Free()
+
+	goVal, err := goClassObjectValue.GetGoObject()
+
+	if err != nil {
+		panic(err)
+	}
+
+	data, err := json.Marshal(goVal)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(data))
+}

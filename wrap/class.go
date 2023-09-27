@@ -37,22 +37,26 @@ var jsClassFieldFnPtrStore = make(map[int32]*jsClassFieldFnEntry)
 
 type jsClassFnEntry struct {
 	fnName string
+	ctx    *Context
 	fn     func(ctx *Context, this Value, args []Value) Value
 }
 
 type jsClassFieldFnEntry struct {
 	fieldName string
+	ctx       *Context
 	getFn     func(ctx *Context, this Value, args []Value) Value
 	setFn     func(ctx *Context, this Value, args []Value) Value
 }
 
 type JSClass struct {
-	className     string
-	goClassID     uint32
-	fnIds         []int32
-	fieldFn       map[string]*int32
-	constructorFn func(ctx *Context, this Value, args []Value) interface{}
-	finalizerFn   func(goObject interface{})
+	className        string
+	goClassID        uint32
+	fnIds            []int32
+	fieldFn          map[string]*int32
+	constructorFn    func(ctx *Context, this Value, args []Value) interface{}
+	constructorFnObj *Value
+	ctx              *Context
+	finalizerFn      func(goObject interface{})
 }
 
 func newGlobalClass(className string) *JSClass {
@@ -113,6 +117,20 @@ func (j *JSClass) SetConstructor(fn func(ctx *Context, this Value, args []Value)
 func (j *JSClass) SetFinalizer(fn func(obj interface{})) {
 	//j.finalizerID = j.storeFinalizerPtr(getFn)
 	j.finalizerFn = fn
+}
+
+func (j *JSClass) CreateGoJsClassObject(args ...Value) Value {
+	if j.ctx == nil {
+		panic("[CreateGoJsClassObject] the corresponding class is not initialized.If it is a global class, it cannot be called until the ctx has been created; If it is a module, it needs to be initialized before it can be called")
+	}
+	cargs := []C.JSValue{}
+	for _, x := range args {
+		cargs = append(cargs, x.ref)
+	}
+	if len(args) == 0 {
+		return Value{ctx: j.ctx, ref: C.JS_CallConstructor(j.ctx.ref, j.constructorFnObj.ref, 0, nil)}
+	}
+	return Value{ctx: j.ctx, ref: C.JS_CallConstructor(j.ctx.ref, j.constructorFnObj.ref, C.int(len(args)), &cargs[0])}
 }
 
 func (j *JSClass) AddClassFn(fnName string, fn func(ctx *Context, this Value, args []Value) Value) {
