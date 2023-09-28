@@ -58,8 +58,7 @@ func TestNewClass(t *testing.T) {
 	defer ctx.Close()
 
 	ctx.Globals().Set("getGoObject", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
-		arg := args[0]
-		goValue, err := arg.GetGoObject()
+		goValue, err := quickjs.GetGoObject[*ExampleObject](args[0])
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -130,7 +129,7 @@ func TestNewClassCallConstructor(t *testing.T) {
 	goClassObjectValue := class.CreateGoJsClassObject(ctx.String("test Name 1"), ctx.Int32(23))
 	defer goClassObjectValue.Free()
 
-	goVal, err := goClassObjectValue.GetGoObject()
+	goVal, err := quickjs.GetGoObject[*ExampleObject](goClassObjectValue)
 
 	if err != nil {
 		panic(err)

@@ -148,7 +148,7 @@ func TestCreateModClassObject(t *testing.T) {
 	goClassObjectValue := class.CreateGoJsClassObject(ctx.String("test Name 1"), ctx.Int32(23))
 	defer goClassObjectValue.Free()
 
-	goVal, err := goClassObjectValue.GetGoObject()
+	goVal, err := quickjs.GetGoObject[*ExampleObject](goClassObjectValue)
 
 	if err != nil {
 		panic(err)

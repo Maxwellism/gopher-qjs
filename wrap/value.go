@@ -341,12 +341,28 @@ func (v Value) globalInstanceof(name string) bool {
 	return C.JS_IsInstanceOf(v.ctx.ref, v.ref, ctor.ref) == 1
 }
 
-func (v Value) GetGoObject() (interface{}, error) {
+func (v Value) getGoObject() (interface{}, error) {
 	goObjectID := int32(C.getGoObjectID(v.ref))
 	if goObjectID < 0 {
 		return nil, errors.New("the value there is no corresponding go object")
 	}
 	return jsClassMapGoObject[goObjectID], nil
+}
+
+func (v Value) GetGoClassObject() (interface{}, error) {
+	return v.getGoObject()
+}
+
+func GetGoObject[T any](v Value) (*T, error) {
+	val, err := v.getGoObject()
+	if err != nil {
+		return nil, err
+	}
+	if goObject, ok := val.(T); ok {
+		return &goObject, nil
+	} else {
+		return nil, errors.New("go object conversion failed with wrong type")
+	}
 }
 
 func (v Value) IsNumber() bool        { return C.JS_IsNumber(v.ref) == 1 }
