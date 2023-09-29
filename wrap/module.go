@@ -94,7 +94,7 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 
 	for _, classID := range m.classIDList {
 		jsClass := jsClassIDMap[classID]
-		goStr := jsClass.className
+		goStr := jsClass.ClassName
 		cStr1 := C.CString(goStr)
 		defer C.free(unsafe.Pointer(cStr1))
 		C.JS_AddModuleExport(ctx, cmod, cStr1)

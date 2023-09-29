@@ -49,7 +49,7 @@ type jsClassFieldFnEntry struct {
 }
 
 type JSClass struct {
-	className        string
+	ClassName        string
 	goClassID        uint32
 	fnIds            []int32
 	fieldFn          map[string]*int32
@@ -63,7 +63,7 @@ func newGlobalClass(className string) *JSClass {
 	jsClass := &JSClass{
 		fnIds:     []int32{},
 		fieldFn:   make(map[string]*int32),
-		className: className,
+		ClassName: className,
 	}
 	jsClassLock.Lock()
 
@@ -81,7 +81,7 @@ func newModClass(className string) *JSClass {
 	jsClass := &JSClass{
 		fnIds:     []int32{},
 		fieldFn:   make(map[string]*int32),
-		className: className,
+		ClassName: className,
 	}
 	jsClassLock.Lock()
 
