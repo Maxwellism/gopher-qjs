@@ -1,9 +1,9 @@
 package quickjs_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/Maxwellism/gopher-qjs/wrap"
+	json "github.com/json-iterator/go"
 	"testing"
 )
 

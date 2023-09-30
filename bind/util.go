@@ -1,9 +1,9 @@
 package bind
 
 import (
-	"encoding/json"
 	"errors"
 	quickjs "github.com/Maxwellism/gopher-qjs/wrap"
+	json "github.com/json-iterator/go"
 	"reflect"
 )
 
