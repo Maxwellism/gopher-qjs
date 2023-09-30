@@ -322,12 +322,12 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 		finalizer: (*C.JSClassFinalizer)(C.goFinalizer),
 	}
 
-	goClassName := C.CString(jsClass.className)
+	goClassName := C.CString(jsClass.ClassName)
 	defer C.free(unsafe.Pointer(goClassName))
 
 	def.class_name = goClassName
 	if ctx == nil {
-		panic(fmt.Sprintf("go class %s ctx point is null", jsClass.className))
+		panic(fmt.Sprintf("go class %s ctx point is null", jsClass.ClassName))
 	}
 	C.JS_NewClass(C.JS_GetRuntime(ctx), cClassID, &def)
 

@@ -61,7 +61,7 @@ JSValue goClassConstructor(JSContext *ctx, JSValueConst new_target, int argc, JS
     obj = JS_NewObjectProtoClass(ctx, proto, magic);
 
 //    JS_SetPropertyStr(ctx, proto, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
-//    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewInt32(ctx, goObjectId));
+    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewInt32(ctx, goObjectId));
 
     JS_FreeValue(ctx, proto);
     if (JS_IsException(obj)){
@@ -80,15 +80,6 @@ void goFinalizer(JSRuntime *rt, JSValue val) {
     goFinalizerHandle(goClassObjectInfo->goClassID, goClassObjectInfo->objectId);
 
     js_free_rt(rt,goClassObjectInfo);
-}
-
-int32_t getGoObjectID(JSValue val) {
-    GoClassObjectInfo *goClassObjectInfo = JS_UnsafeGetOpaque(val);
-    if (!goClassObjectInfo){
-        int32_t value = -1;
-        return value;
-    }
-    return goClassObjectInfo->objectId;
 }
 
 void registerGoClass(JSContext *ctx) {
