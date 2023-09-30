@@ -342,11 +342,13 @@ func (v Value) globalInstanceof(name string) bool {
 }
 
 func (v Value) getGoObject() (interface{}, error) {
-	goObjectID := int32(C.getGoObjectID(v.ref))
-	if goObjectID < 0 {
+	idVal := v.Get("_goObjectID")
+
+	if idVal.IsUndefined() {
 		return nil, errors.New("the value there is no corresponding go object")
+	} else {
+		return idVal.Int32(), nil
 	}
-	return jsClassMapGoObject[goObjectID], nil
 }
 
 func (v Value) GetGoClassObject() (interface{}, error) {

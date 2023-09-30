@@ -82,15 +82,6 @@ void goFinalizer(JSRuntime *rt, JSValue val) {
     js_free_rt(rt,goClassObjectInfo);
 }
 
-int32_t getGoObjectID(JSValue val) {
-    GoClassObjectInfo *goClassObjectInfo = JS_UnsafeGetOpaque(val);
-    if (!goClassObjectInfo){
-        int32_t value = -1;
-        return value;
-    }
-    return goClassObjectInfo->objectId;
-}
-
 void registerGoClass(JSContext *ctx) {
     registerGoClassHandle(ctx);
 }
