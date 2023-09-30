@@ -59,10 +59,11 @@ func TestNewClass(t *testing.T) {
 
 	ctx.Globals().Set("getGoObject", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
 		goValue, err := quickjs.GetGoObject[*ExampleObject](args[0])
+		fmt.Println("====================getGoObject fn=================")
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println(goValue)
+		fmt.Println(*goValue)
 		return ctx.Undefined()
 	}))
 

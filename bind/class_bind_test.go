@@ -18,7 +18,7 @@ type ExampleStruct struct {
 
 // test
 func (s *ExampleStruct) QJSGetTest() {
-	fmt.Println("Get test age:", s.Age)
+	fmt.Println(fmt.Sprintf("Method Test\nGet test name: %s\nGet test age: %d\n", s.Name, s.Age))
 }
 
 func TestClassBind(t *testing.T) {
@@ -35,11 +35,12 @@ func TestClassBind(t *testing.T) {
 			goObject = &ExampleStruct{}
 			return goObject
 		},
-		WithMethodBindList(map[string]string{
+		WithExportMethodBindList(map[string]string{
 			"QJSGetTest": "GetTest",
 		}),
-		WithFieldBindList(map[string]string{
+		WithExportFieldBindList(map[string]string{
 			"Name": "name",
+			"Age":  "Age",
 		}),
 	)
 	// Create a new context

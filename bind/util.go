@@ -70,7 +70,7 @@ func GoObjectToJsValue(goValue interface{}, ctx *quickjs.Context) quickjs.Value 
 
 func JsValueToGoObject(expectArgumentType reflect.Type, jsValue quickjs.Value) (interface{}, error) {
 	var resArg interface{}
-	if goValue, err := jsValue.GetGoClassObject(); err == nil {
+	if goValue, err := jsValue.GetBindGoObject(); err == nil {
 		resArg = goValue
 	} else {
 		switch expectArgumentType.Kind() {

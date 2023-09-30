@@ -278,9 +278,6 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 	v := jsGoClass.constructorFn(jsGoClass.ctx, Value{ctx: jsGoClass.ctx, ref: newTarget}, args)
 	objectID := storeGoObjectPtr(v)
 
-	val := &Value{ctx: jsGoClass.ctx, ref: newTarget}
-	val.Set("_goObjectID", jsGoClass.ctx.Int32(objectID))
-
 	return C.int32_t(objectID)
 }
 

@@ -5,14 +5,16 @@ import (
 	"fmt"
 	quickjs "github.com/Maxwellism/gopher-qjs/wrap"
 	"reflect"
+	"sync"
 )
 
 var defaultFinalizer = func(obj interface{}) {}
 
 type classOpts struct {
-	finalizer     func(obj interface{})
-	methodBindMap map[string]string
-	fieldBindMap  map[string]string
+	isCheckArgCount    bool
+	finalizer          func(obj interface{})
+	methodBindMap      map[string]string
+	exportFieldBindMap map[string]string
 }
 
 type ClassOpt func(*classOpts)
@@ -23,15 +25,21 @@ func WithFinalizer(finalizer func(obj interface{})) ClassOpt {
 	}
 }
 
-func WithMethodBindList(methodBindMap map[string]string) ClassOpt {
+func WithExportMethodBindList(methodBindMap map[string]string) ClassOpt {
 	return func(opt *classOpts) {
 		opt.methodBindMap = methodBindMap
 	}
 }
 
-func WithFieldBindList(fieldBindMap map[string]string) ClassOpt {
+func WithExportFieldBindList(fieldBindMap map[string]string) ClassOpt {
 	return func(opt *classOpts) {
-		opt.fieldBindMap = fieldBindMap
+		opt.exportFieldBindMap = fieldBindMap
+	}
+}
+
+func WithCheckInArgCount(isCheck bool) ClassOpt {
+	return func(opt *classOpts) {
+		opt.isCheckArgCount = isCheck
 	}
 }
 
@@ -40,18 +48,19 @@ func WrapClass(class *quickjs.JSClass, constructorFn interface{}, opts ...ClassO
 	if fn.Type().NumOut() != 1 {
 		panic(fmt.Sprintf("class[%s] constructor func there must be only one return parameter", class.ClassName))
 	}
+
+	cOpts := &classOpts{}
+	for _, opt := range opts {
+		opt(cOpts)
+	}
 	// constructor
 	class.SetConstructor(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
-		res, err := bindConstructor(fn, args)
+		res, err := bindConstructor(fn, args, cOpts)
 		if err != nil {
 			panic(err)
 		}
 		return res
 	})
-	cOpts := &classOpts{}
-	for _, opt := range opts {
-		opt(cOpts)
-	}
 
 	// finalizer
 	if cOpts.finalizer != nil {
@@ -74,9 +83,11 @@ func WrapClass(class *quickjs.JSClass, constructorFn interface{}, opts ...ClassO
 	return class
 }
 
-func bindConstructor(constructorFnType reflect.Value, args []quickjs.Value) (interface{}, error) {
-	if len(args) != constructorFnType.Type().NumIn() {
-		return nil, errors.New("the number of parameters passed by js is inconsistent with that of go constructor")
+func bindConstructor(constructorFnType reflect.Value, args []quickjs.Value, opt *classOpts) (interface{}, error) {
+	if opt.isCheckArgCount {
+		if len(args) != constructorFnType.Type().NumIn() {
+			return nil, errors.New("the number of parameters passed by js is inconsistent with that of go constructor")
+		}
 	}
 	var callArgs []reflect.Value
 	for i := 0; i < constructorFnType.Type().NumIn(); i++ {
@@ -91,41 +102,50 @@ func bindConstructor(constructorFnType reflect.Value, args []quickjs.Value) (int
 }
 
 func bindJsClassMethod(class *quickjs.JSClass, opt *classOpts) {
-	if opt.methodBindMap != nil {
-		for goMethodName, jsMethodName := range opt.methodBindMap {
-			class.AddClassFn(jsMethodName, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
-				val, err := this.GetGoClassObject()
+	var wg sync.WaitGroup
+	for goMethodName, jsMethodName := range opt.methodBindMap {
+		wg.Add(1)
+		if jsMethodName == "" {
+			jsMethodName = goMethodName
+		}
+		go func(jsFnName, goFnName string) {
+			class.AddClassFn(jsFnName, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+				val, err := this.GetBindGoObject()
 				if err != nil {
 					panic(err)
 				}
 
 				goValue := reflect.ValueOf(val)
 
-				method := goValue.MethodByName(goMethodName)
+				method := goValue.MethodByName(goFnName)
 
 				if method.Kind() == reflect.Invalid {
-					panic("no method found:" + goMethodName)
+					panic("no method found:" + goFnName)
 				}
 
-				callArgs, err := getBindFnArgs(method.Type(), args)
+				callArgs, err := getBindFnArgs(method.Type(), args, opt)
 				if err != nil {
 					return ctx.Error(err)
 				}
 
-				res := goValue.MethodByName(goMethodName).Call(callArgs)
+				res := goValue.MethodByName(goFnName).Call(callArgs)
 				if len(res) == 0 {
 					return ctx.Undefined()
 				}
 				return GoObjectToJsValue(res[0].Interface(), ctx)
 			})
-		}
-	}
+		}(jsMethodName, goMethodName)
 
+		wg.Done()
+	}
+	wg.Wait()
 }
 
-func getBindFnArgs(fnType reflect.Type, args []quickjs.Value) ([]reflect.Value, error) {
-	if len(args) != fnType.NumIn() {
-		return nil, errors.New("the number of parameters passed by js is inconsistent with that of go fn")
+func getBindFnArgs(fnType reflect.Type, args []quickjs.Value, opt *classOpts) ([]reflect.Value, error) {
+	if opt.isCheckArgCount {
+		if len(args) != fnType.NumIn() {
+			return nil, errors.New("the number of parameters passed by js is inconsistent with that of go fn")
+		}
 	}
 	var callArgs []reflect.Value
 	for i := 0; i < fnType.NumIn(); i++ {
@@ -139,58 +159,67 @@ func getBindFnArgs(fnType reflect.Type, args []quickjs.Value) ([]reflect.Value, 
 }
 
 func bindField(class *quickjs.JSClass, structType reflect.Type, opt *classOpts) {
-	for i := 0; i < structType.NumField(); i++ {
-		field := structType.Field(i)
-		goFieldName := field.Name
-
-		jsFieldName := goFieldName
-
-		if opt.fieldBindMap != nil && opt.fieldBindMap[goFieldName] != "" {
-			jsFieldName = opt.fieldBindMap[goFieldName]
+	var wg sync.WaitGroup
+	for goFieldName, jsFieldName := range opt.exportFieldBindMap {
+		_, ok := structType.FieldByName(goFieldName)
+		if !ok {
+			panic("not find field by:" + goFieldName)
 		}
 
+		if jsFieldName == "" {
+			jsFieldName = goFieldName
+		}
 		// field set
-		class.AddClassSetFn(jsFieldName, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
-			goObject, err := this.GetGoClassObject()
-			if err != nil {
-				panic(err)
-			}
+		go func(jsField, goField string) {
+			wg.Add(1)
+			class.AddClassSetFn(jsField, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+				goObject, err := this.GetBindGoObject()
+				if err != nil {
+					panic(err)
+				}
 
-			var structValue reflect.Value
+				var structValue reflect.Value
 
-			objType := reflect.TypeOf(goObject)
-			if objType.Kind() == reflect.Ptr {
-				structValue = reflect.ValueOf(goObject).Elem()
-			} else {
-				structValue = reflect.ValueOf(&goObject).Elem()
-			}
+				objType := reflect.TypeOf(goObject)
+				if objType.Kind() == reflect.Ptr {
+					structValue = reflect.ValueOf(goObject).Elem()
+				} else {
+					structValue = reflect.ValueOf(&goObject).Elem()
+				}
 
-			err = bindFieldSet(structValue, goFieldName, args[0])
-			if err != nil {
-				return ctx.Error(err)
-			}
-			return ctx.Undefined()
-		})
+				err = bindFieldSet(structValue, goField, args[0])
+				if err != nil {
+					return ctx.Error(err)
+				}
+				return ctx.Undefined()
+			})
+			wg.Done()
+		}(jsFieldName, goFieldName)
 
 		// field get
-		class.AddClassGetFn(jsFieldName, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
-			goObject, err := this.GetGoClassObject()
-			if err != nil {
-				panic(err)
-			}
+		go func(jsField, goField string) {
+			wg.Add(1)
+			class.AddClassGetFn(jsField, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+				goObject, err := this.GetBindGoObject()
+				if err != nil {
+					panic(err)
+				}
 
-			var structValue reflect.Value
+				var structValue reflect.Value
 
-			objType := reflect.TypeOf(goObject)
-			if objType.Kind() == reflect.Ptr {
-				structValue = reflect.ValueOf(goObject).Elem()
-			} else {
-				structValue = reflect.ValueOf(&goObject).Elem()
-			}
+				objType := reflect.TypeOf(goObject)
+				if objType.Kind() == reflect.Ptr {
+					structValue = reflect.ValueOf(goObject).Elem()
+				} else {
+					structValue = reflect.ValueOf(&goObject).Elem()
+				}
 
-			return bindFieldGet(structValue, goFieldName, ctx)
-		})
+				return bindFieldGet(structValue, goField, ctx)
+			})
+			wg.Done()
+		}(jsFieldName, goFieldName)
 	}
+	wg.Wait()
 }
 
 func bindFieldGet(structValue reflect.Value, fieldName string, ctx *quickjs.Context) quickjs.Value {

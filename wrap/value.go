@@ -347,12 +347,22 @@ func (v Value) getGoObject() (interface{}, error) {
 	if idVal.IsUndefined() {
 		return nil, errors.New("the value there is no corresponding go object")
 	} else {
-		return idVal.Int32(), nil
+		return jsClassMapGoObject[idVal.Int32()], nil
 	}
 }
 
-func (v Value) GetGoClassObject() (interface{}, error) {
+func (v Value) GetBindGoObject() (interface{}, error) {
 	return v.getGoObject()
+}
+
+func (v Value) SetBindGoObject(val interface{}) int32 {
+	idVal := v.Get("_goObjectID")
+	if idVal.IsUndefined() {
+		return storeGoObjectPtr(val)
+	} else {
+		jsClassMapGoObject[idVal.Int32()] = val
+		return idVal.Int32()
+	}
 }
 
 func GetGoObject[T any](v Value) (*T, error) {
