@@ -1,7 +1,8 @@
-package bind
+package quickjsBind_test
 
 import (
 	"fmt"
+	"github.com/Maxwellism/gopher-qjs/quickjsBind"
 	quickjs "github.com/Maxwellism/gopher-qjs/wrap"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -43,7 +44,7 @@ func TestArgTest(t *testing.T) {
 	}
 
 	for _, data := range testParams {
-		res, err := JsValueToGoObject(reflect.TypeOf(data.arg), data.jsValue)
+		res, err := quickjsBind.JsValueToGoObject(reflect.TypeOf(data.arg), data.jsValue)
 		defer data.jsValue.Free()
 
 		assert.NoError(t, err)
@@ -69,7 +70,7 @@ func TestArgErrorTest(t *testing.T) {
 		},
 	}
 	for _, data := range testParams {
-		res, err := JsValueToGoObject(reflect.TypeOf(data.arg), data.jsValue)
+		res, err := quickjsBind.JsValueToGoObject(reflect.TypeOf(data.arg), data.jsValue)
 		defer data.jsValue.Free()
 		assert.NoError(t, err)
 		fmt.Println(res)

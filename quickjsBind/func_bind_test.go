@@ -1,7 +1,8 @@
-package bind
+package quickjsBind_test
 
 import (
 	"fmt"
+	"github.com/Maxwellism/gopher-qjs/quickjsBind"
 	quickjs "github.com/Maxwellism/gopher-qjs/wrap"
 	"testing"
 )
@@ -11,7 +12,7 @@ var FnTest = func() {
 }
 
 func TestWrapFn(t *testing.T) {
-	wrap := WrapFn(FnTest)
+	wrap := quickjsBind.WrapFn(FnTest)
 	rt := quickjs.NewRuntime()
 	defer rt.Close()
 
