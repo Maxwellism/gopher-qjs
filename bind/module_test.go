@@ -1,27 +1,27 @@
-package quickjs_test
+package quickjsBind_test
 
 import (
 	"fmt"
-	"github.com/Maxwellism/gopher-qjs/wrap"
+	"github.com/Maxwellism/gopher-qjs/bind"
 	json "github.com/json-iterator/go"
 	"testing"
 )
 
 func TestModule(t *testing.T) {
 
-	m := quickjs.NewMod("module_test")
-	m.AddExportFn("fnTest", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	m := quickjsBind.NewMod("module_test")
+	m.AddExportFn("fnTest", func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		fmt.Println("3241")
 		return ctx.Float64(3.123)
 	})
-	m.AddExportFn("fnTest1", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	m.AddExportFn("fnTest1", func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		val := ctx.Object()
 		val.Set("Name", ctx.String("boy"))
 		val.Set("Age", ctx.Int32(32))
 		return val
 	})
 
-	m.AddExportFn("fnTest2", func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	m.AddExportFn("fnTest2", func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		if len(args) > 0 {
 			//defer args[1].Free()
 			fmt.Println(args[0].String())
@@ -29,7 +29,7 @@ func TestModule(t *testing.T) {
 		return ctx.Null()
 	})
 
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 	rt.AddGoMod(m)
 
@@ -48,11 +48,11 @@ func TestModule(t *testing.T) {
 func TestModClass(t *testing.T) {
 	var classObject *ExampleObject
 
-	m := quickjs.NewMod("module_test")
+	m := quickjsBind.NewMod("module_test")
 
 	class := m.CreateExportClass("classTest")
 
-	class.SetConstructor(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
+	class.SetConstructor(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) interface{} {
 		fmt.Println("=========start Constructor==========")
 		if len(args) < 2 {
 			panic("Constructor arg len is < 1")
@@ -87,7 +87,7 @@ func TestModClass(t *testing.T) {
 	//	return ctx.Int32(classObject.Age)
 	//})
 
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 	rt.AddGoMod(m)
 
@@ -105,11 +105,11 @@ func TestModClass(t *testing.T) {
 func TestCreateModClassObject(t *testing.T) {
 	var classObject *ExampleObject
 
-	m := quickjs.NewMod("module_test")
+	m := quickjsBind.NewMod("module_test")
 
 	class := m.CreateExportClass("classTest")
 
-	class.SetConstructor(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
+	class.SetConstructor(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) interface{} {
 		fmt.Println("=========start Constructor==========")
 		if len(args) < 2 {
 			panic("Constructor arg len is < 1")
@@ -131,7 +131,7 @@ func TestCreateModClassObject(t *testing.T) {
 		fmt.Println("go object value is:", string(data))
 	})
 
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 	rt.AddGoMod(m)
 
@@ -148,7 +148,7 @@ func TestCreateModClassObject(t *testing.T) {
 	goClassObjectValue := class.CreateGoJsClassObject(ctx.String("test Name 1"), ctx.Int32(23))
 	defer goClassObjectValue.Free()
 
-	goVal, err := quickjs.GetGoObject[*ExampleObject](goClassObjectValue)
+	goVal, err := quickjsBind.GetGoObject[*ExampleObject](goClassObjectValue)
 
 	if err != nil {
 		panic(err)

@@ -1,7 +1,7 @@
 /*
 Package quickjs Go bindings to QuickJS: a fast, small, and embeddable ES2020 JavaScript interpreter
 */
-package quickjs
+package quickjsBind
 
 /*
 #cgo CFLAGS: -I./deps/include

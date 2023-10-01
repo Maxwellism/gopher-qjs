@@ -1,9 +1,9 @@
-package bind
+package quickjsWrap
 
 import (
 	"errors"
 	"fmt"
-	quickjs "github.com/Maxwellism/gopher-qjs/wrap"
+	quickjs "github.com/Maxwellism/gopher-qjs/bind"
 	"reflect"
 	"sync"
 )
@@ -37,29 +37,68 @@ func WithExportFieldBindList(fieldBindMap map[string]string) ClassOpt {
 	}
 }
 
-func WithCheckInArgCount(isCheck bool) ClassOpt {
-	return func(opt *classOpts) {
-		opt.isCheckArgCount = isCheck
+type classConstructorOpts struct {
+	constructorFn func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{}
+	bindFn        *reflect.Value
+}
+
+type ConstructorOpt func(opts *classConstructorOpts)
+
+func WithBindConstructorFn(constructorFn interface{}) ConstructorOpt {
+	return func(opts *classConstructorOpts) {
+		fn := reflect.ValueOf(constructorFn)
+
+		if fn.Type().Kind() != reflect.Func {
+			panic("constructorFn parameters are not func")
+		}
+		if fn.Type().NumOut() != 1 {
+			panic(fmt.Sprintf("constructor func there must be only one return parameter"))
+		}
+		opts.bindFn = &fn
 	}
 }
 
-func WrapClass(class *quickjs.JSClass, constructorFn interface{}, opts ...ClassOpt) *quickjs.JSClass {
-	fn := reflect.ValueOf(constructorFn)
-	if fn.Type().NumOut() != 1 {
-		panic(fmt.Sprintf("class[%s] constructor func there must be only one return parameter", class.ClassName))
+func WithQjsConstructorFn(constructorFn func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{}) ConstructorOpt {
+	return func(opts *classConstructorOpts) {
+		opts.constructorFn = constructorFn
 	}
+}
 
+func WithSetCheckInArgCount() ClassOpt {
+	return func(opt *classOpts) {
+		opt.isCheckArgCount = true
+	}
+}
+
+func WrapClass(class *quickjs.JSClass, classConstructorOptFn ConstructorOpt, opts ...ClassOpt) *quickjs.JSClass {
 	cOpts := &classOpts{}
 	for _, opt := range opts {
 		opt(cOpts)
 	}
-	// constructor
+
+	classConstructor := &classConstructorOpts{}
+
+	classConstructorOptFn(classConstructor)
+
+	var fn reflect.Value
+
+	if classConstructor.bindFn != nil {
+		fn = *classConstructor.bindFn
+	} else {
+		fn = reflect.ValueOf(classConstructor.constructorFn)
+	}
+
+	// classConstructor
 	class.SetConstructor(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
-		res, err := bindConstructor(fn, args, cOpts)
-		if err != nil {
-			panic(err)
+		if classConstructor.bindFn != nil {
+			res, err := bindConstructor(fn, args, cOpts)
+			if err != nil {
+				panic(err)
+			}
+			return res
+		} else {
+			return classConstructor.constructorFn(ctx, this, args)
 		}
-		return res
 	})
 
 	// finalizer
@@ -125,7 +164,7 @@ func bindJsClassMethod(class *quickjs.JSClass, opt *classOpts) {
 
 				callArgs, err := getBindFnArgs(method.Type(), args, opt)
 				if err != nil {
-					return ctx.Error(err)
+					return ctx.ThrowError(err)
 				}
 
 				res := goValue.MethodByName(goFnName).Call(callArgs)

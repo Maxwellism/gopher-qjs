@@ -21,23 +21,23 @@ jobs:
 
     - name: Prebuild for linux
       if: matrix.platform == 'ubuntu-latest'
-      run: rm -rf wrap/deps/libs/linux* && rm -rf wrap/deps/libs/windows* && docker pull multiarch/crossbuild
+      run: rm -rf bind/deps/libs/linux* && rm -rf bind/deps/libs/windows* && docker pull multiarch/crossbuild
     
     - name: Build linux amd64
       if: matrix.platform == 'ubuntu-latest'
-      run: mkdir -p wrap/deps/libs/linux_amd64 && cd wrap/deps/quickjs && docker run --rm -v $(pwd):/workdir multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/linux_amd64
+      run: mkdir -p bind/deps/libs/linux_amd64 && cd bind/deps/quickjs && docker run --rm -v $(pwd):/workdir multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/linux_amd64
 
     - name: Build linux arm64
       if: matrix.platform == 'ubuntu-latest'
-      run: mkdir -p wrap/deps/libs/linux_arm64 && cd wrap/deps/quickjs && docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=aarch64-linux-gnu multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/linux_arm64
+      run: mkdir -p bind/deps/libs/linux_arm64 && cd bind/deps/quickjs && docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=aarch64-linux-gnu multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/linux_arm64
 
     - name: Build windows amd64
       if: matrix.platform == 'ubuntu-latest'
-      run: mkdir -p wrap/deps/libs/windows_amd64 && cd wrap/deps/quickjs && docker run --rm -v $(pwd):/workdir -e CONFIG_WIN32=y -e CROSS_TRIPLE=x86_64-w64-mingw32 multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/windows_amd64
+      run: mkdir -p bind/deps/libs/windows_amd64 && cd bind/deps/quickjs && docker run --rm -v $(pwd):/workdir -e CONFIG_WIN32=y -e CROSS_TRIPLE=x86_64-w64-mingw32 multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/windows_amd64
 
     - name: Build windows 386 
       if: matrix.platform == 'ubuntu-latest'
-      run: mkdir -p wrap/deps/libs/windows_386 && cd wrap/deps/quickjs && docker run --rm -v $(pwd):/workdir -e CONFIG_WIN32=y -e CONFIG_M32=y -e CROSS_TRIPLE=i686-w64-mingw32 multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/windows_386
+      run: mkdir -p bind/deps/libs/windows_386 && cd bind/deps/quickjs && docker run --rm -v $(pwd):/workdir -e CONFIG_WIN32=y -e CONFIG_M32=y -e CROSS_TRIPLE=i686-w64-mingw32 multiarch/crossbuild /bin/bash -c "cd /workdir && make clean && make libquickjs.a "  && mv libquickjs.a ../libs/windows_386
 
     - name: Create PR For Linux & Windows
       if: matrix.platform == 'ubuntu-latest'
@@ -51,15 +51,15 @@ jobs:
       
     - name: Prebuild for mac
       if: matrix.platform == 'macos-11'
-      run: rm -rf wrap/deps/libs/darwin_* && cp -a wrap/deps/Makefile wrap/deps/quickjs
+      run: rm -rf bind/deps/libs/darwin_* && cp -a bind/deps/Makefile bind/deps/quickjs
 
     - name: Build darwin amd64 
       if: matrix.platform == 'macos-11'
-      run: mkdir -p wrap/deps/libs/darwin_amd64 && cd wrap/deps/quickjs && make clean && make libquickjs.a && mv libquickjs.a ../libs/darwin_amd64
+      run: mkdir -p bind/deps/libs/darwin_amd64 && cd bind/deps/quickjs && make clean && make libquickjs.a && mv libquickjs.a ../libs/darwin_amd64
 
     - name: Build darwin arm64 
       if: matrix.platform == 'macos-11'
-      run: mkdir -p wrap/deps/libs/darwin_arm64 && cd wrap/deps/quickjs && make clean && make -e CONFIG_DARWIN_ARM64=y libquickjs.a && mv libquickjs.a ../libs/darwin_arm64
+      run: mkdir -p bind/deps/libs/darwin_arm64 && cd bind/deps/quickjs && make clean && make -e CONFIG_DARWIN_ARM64=y libquickjs.a && mv libquickjs.a ../libs/darwin_arm64
       
     - name: Create PR For Darwin
       if: matrix.platform == 'macos-11'

@@ -1,4 +1,4 @@
-package quickjs
+package quickjsBind
 
 import (
 	"fmt"

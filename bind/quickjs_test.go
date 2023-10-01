@@ -1,4 +1,4 @@
-package quickjs_test
+package quickjsBind_test
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Maxwellism/gopher-qjs/wrap"
+	"github.com/Maxwellism/gopher-qjs/bind"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ import (
 func Example() {
 
 	// Create a new runtime
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	// Create a new context
@@ -32,7 +32,7 @@ func Example() {
 	test.Set("B", ctx.Int32(0))
 	test.Set("C", ctx.Bool(false))
 	// bind go function to js object
-	test.Set("hello", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	test.Set("hello", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return ctx.String("Hello " + args[0].String())
 	}))
 
@@ -48,7 +48,7 @@ func Example() {
 	fmt.Println(go_ret.String())
 
 	//bind go function to Javascript async function
-	ctx.Globals().Set("testAsync", ctx.AsyncFunction(func(ctx *quickjs.Context, this quickjs.Value, promise quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("testAsync", ctx.AsyncFunction(func(ctx *quickjsBind.Context, this quickjsBind.Value, promise quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return promise.Call("resolve", ctx.String("Hello Async Function!"))
 	}))
 
@@ -74,7 +74,7 @@ func Example() {
 }
 
 func TestRuntimeGC(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	// set runtime options
@@ -92,7 +92,7 @@ func TestRuntimeGC(t *testing.T) {
 }
 
 func TestRuntimeMemoryLimit(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	// set runtime options
@@ -111,7 +111,7 @@ func TestRuntimeMemoryLimit(t *testing.T) {
 }
 
 func TestRuntimeStackSize(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	rt.SetMaxStackSize(65534)
@@ -141,13 +141,13 @@ func TestRuntimeStackSize(t *testing.T) {
 func TestThrowError(t *testing.T) {
 	expected := errors.New("custom error")
 
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return ctx.ThrowError(expected)
 	}))
 
@@ -157,13 +157,13 @@ func TestThrowError(t *testing.T) {
 }
 
 func TestThrowInternalError(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return ctx.ThrowInternalError("%s", "custom error")
 	}))
 
@@ -173,13 +173,13 @@ func TestThrowInternalError(t *testing.T) {
 }
 
 func TestThrowRangeError(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return ctx.ThrowRangeError("%s", "custom error")
 	}))
 
@@ -189,13 +189,13 @@ func TestThrowRangeError(t *testing.T) {
 }
 
 func TestThrowReferenceError(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return ctx.ThrowReferenceError("%s", "custom error")
 	}))
 
@@ -205,13 +205,13 @@ func TestThrowReferenceError(t *testing.T) {
 }
 
 func TestThrowSyntaxError(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return ctx.ThrowSyntaxError("%s", "custom error")
 	}))
 
@@ -221,13 +221,13 @@ func TestThrowSyntaxError(t *testing.T) {
 }
 
 func TestThrowTypeError(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return ctx.ThrowTypeError("%s", "custom error")
 	}))
 
@@ -237,7 +237,7 @@ func TestThrowTypeError(t *testing.T) {
 }
 
 func TestValue(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -292,7 +292,7 @@ func TestValue(t *testing.T) {
 }
 
 func TestEvalBytecode(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -312,7 +312,7 @@ func TestEvalBytecode(t *testing.T) {
 	buf, err := ctx.Compile(jsStr)
 	require.NoError(t, err)
 
-	rt2 := quickjs.NewRuntime()
+	rt2 := quickjsBind.NewRuntime()
 	defer rt2.Close()
 
 	ctx2 := rt2.NewContext()
@@ -325,7 +325,7 @@ func TestEvalBytecode(t *testing.T) {
 }
 
 func TestEvalFile(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -339,7 +339,7 @@ func TestEvalFile(t *testing.T) {
 }
 
 func TestBadSyntax(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -351,7 +351,7 @@ func TestBadSyntax(t *testing.T) {
 }
 
 func TestBadBytecode(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -364,7 +364,7 @@ func TestBadBytecode(t *testing.T) {
 }
 
 func TestArrayBuffer(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -401,7 +401,7 @@ func TestConcurrency(t *testing.T) {
 
 			defer wg.Done()
 
-			rt := quickjs.NewRuntime()
+			rt := quickjsBind.NewRuntime()
 			defer rt.Close()
 
 			ctx := rt.NewContext()
@@ -432,7 +432,7 @@ func TestConcurrency(t *testing.T) {
 
 func TestJson(t *testing.T) {
 	// Create a new runtime
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	// Create a new context
@@ -450,7 +450,7 @@ func TestJson(t *testing.T) {
 
 func TestObject(t *testing.T) {
 	// Create a new runtime
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	// Create a new context
@@ -472,7 +472,7 @@ func TestObject(t *testing.T) {
 	require.EqualValues(t, "String A,0,false", result.String())
 
 	// set function
-	test.Set("F", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	test.Set("F", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		arg_x := args[0].Int32()
 		arg_y := args[1].Int32()
 		return ctx.Int32(arg_x * arg_y)
@@ -510,7 +510,7 @@ func TestObject(t *testing.T) {
 }
 
 func TestArray(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -547,7 +547,7 @@ func TestArray(t *testing.T) {
 	}
 	require.EqualValues(t, first.String(), "test 1")
 
-	test.Push([]quickjs.Value{ctx.Int32(34), ctx.Bool(false), ctx.String("445")}...)
+	test.Push([]quickjsBind.Value{ctx.Int32(34), ctx.Bool(false), ctx.String("445")}...)
 
 	require.Equal(t, int(test.Len()), 5)
 
@@ -559,7 +559,7 @@ func TestArray(t *testing.T) {
 }
 
 func TestMap(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -578,7 +578,7 @@ func TestMap(t *testing.T) {
 	}
 
 	count := 0
-	test.ForEach(func(key quickjs.Value, value quickjs.Value) {
+	test.ForEach(func(key quickjsBind.Value, value quickjsBind.Value) {
 		count++
 		fmt.Println(fmt.Sprintf("key:%s value:%s", key.String(), value.String()))
 	})
@@ -587,7 +587,7 @@ func TestMap(t *testing.T) {
 	test.Put(ctx.Int64(3), ctx.Int64(4))
 	fmt.Println("\nput after the content inside")
 	count = 0
-	test.ForEach(func(key quickjs.Value, value quickjs.Value) {
+	test.ForEach(func(key quickjsBind.Value, value quickjsBind.Value) {
 		count++
 		fmt.Println(fmt.Sprintf("key:%s value:%s", key.String(), value.String()))
 	})
@@ -596,7 +596,7 @@ func TestMap(t *testing.T) {
 	count = 0
 	test.Delete(ctx.Int64(3))
 	fmt.Println("\ndelete after the content inside")
-	test.ForEach(func(key quickjs.Value, value quickjs.Value) {
+	test.ForEach(func(key quickjsBind.Value, value quickjsBind.Value) {
 		if key.String() == "3" {
 			panic(errors.New("map did not delete the key"))
 		}
@@ -607,7 +607,7 @@ func TestMap(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
@@ -623,7 +623,7 @@ func TestSet(t *testing.T) {
 	}
 
 	count := 0
-	test.ForEach(func(key quickjs.Value) {
+	test.ForEach(func(key quickjsBind.Value) {
 		count++
 		fmt.Println(fmt.Sprintf("value:%s", key.String()))
 	})
@@ -634,13 +634,13 @@ func TestSet(t *testing.T) {
 }
 
 func TestAsyncFunction(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("testAsync", ctx.AsyncFunction(func(ctx *quickjs.Context, this quickjs.Value, promise quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("testAsync", ctx.AsyncFunction(func(ctx *quickjsBind.Context, this quickjsBind.Value, promise quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		return promise.Call("resolve", ctx.String(args[0].String()+args[1].String()))
 	}))
 
@@ -673,7 +673,7 @@ func TestAsyncFunction(t *testing.T) {
 }
 
 func TestSetInterruptHandler(t *testing.T) {
-	rt := quickjs.NewRuntime()
+	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
 	ctx := rt.NewContext()

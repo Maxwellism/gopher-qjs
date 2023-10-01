@@ -1,10 +1,10 @@
 # gopher-qjs
 
-go语言中quickjs的友好包装器，短期内无开发计划，在此充当一个占位仓库，该仓库的计划支持有：
+go语言中quickjs的友好包装器，该仓库的计划支持有：
 
-- [ ] 方法注册
+- [x] 方法注册
   - [x] 普通方法注册
-  - [ ] 异步方法注册
+  - [x] 异步方法注册
 - [ ] 类支持
   - [x] 类构造方法
   - [x] 类方法
@@ -17,6 +17,13 @@ go语言中quickjs的友好包装器，短期内无开发计划，在此充当�
   - [x] 类
   - [ ] 对象
 - [ ] debug支持
-现在这个仓库还未开放，组织里的人要是想使用这些api，请设置一下GOPRIVATE：
 
-go env -w GOPRIVATE=github.com/Maxwellism/gopher-qjs
+相关使用方法请参考里面的test.go文件
+
+## Thanks
+
+|                                                       | About                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------ |
+| [buke/quickjs-go](https://github.com/buke/quickjs-go) | Go 语言的QuickJS绑定库。感谢buke的大量基础工作，本仓库基于buke/quickjs-go仓库进行大量的二次开发。 |
+| [bellard/quickjs](https://github.com/bellard/quickjs) | QuickJS是一个小型并且可嵌入的Javascript引擎，它支持ES2020规范，包括模块，异步生成器和代理器。 |
+

@@ -1,8 +1,8 @@
-package bind
+package quickjsWrap
 
 import (
 	"errors"
-	quickjs "github.com/Maxwellism/gopher-qjs/wrap"
+	quickjs "github.com/Maxwellism/gopher-qjs/bind"
 	json "github.com/json-iterator/go"
 	"reflect"
 )

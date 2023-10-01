@@ -1,8 +1,8 @@
-package quickjs_test
+package quickjsBind_test
 
 import (
 	"fmt"
-	quickjs "github.com/Maxwellism/gopher-qjs/wrap"
+	quickjs "github.com/Maxwellism/gopher-qjs/bind"
 	json "github.com/json-iterator/go"
 	"testing"
 )
