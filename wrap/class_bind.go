@@ -38,7 +38,7 @@ func WithExportFieldBindList(fieldBindMap map[string]string) ClassOpt {
 }
 
 type classConstructorOpts struct {
-	constructorFn func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{}
+	constructorFn *reflect.Value
 	bindFn        *reflect.Value
 }
 
@@ -54,13 +54,24 @@ func WithBindConstructorFn(constructorFn interface{}) ConstructorOpt {
 		if fn.Type().NumOut() != 1 {
 			panic(fmt.Sprintf("constructor func there must be only one return parameter"))
 		}
+
 		opts.bindFn = &fn
 	}
 }
 
-func WithQjsConstructorFn(constructorFn func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{}) ConstructorOpt {
+func WithQjsConstructorFn(constructorFn interface{}) ConstructorOpt {
 	return func(opts *classConstructorOpts) {
-		opts.constructorFn = constructorFn
+
+		fn := reflect.ValueOf(constructorFn)
+
+		if fn.Type().Kind() != reflect.Func {
+			panic("constructorFn parameters are not func")
+		}
+		if fn.Type().NumOut() != 1 {
+			panic(fmt.Sprintf("constructor func there must be only one return parameter"))
+		}
+
+		opts.constructorFn = &fn
 	}
 }
 
@@ -85,7 +96,7 @@ func WrapClass(class *quickjs.JSClass, classConstructorOptFn ConstructorOpt, opt
 	if classConstructor.bindFn != nil {
 		fn = *classConstructor.bindFn
 	} else {
-		fn = reflect.ValueOf(classConstructor.constructorFn)
+		fn = *classConstructor.constructorFn
 	}
 
 	// classConstructor
@@ -97,7 +108,14 @@ func WrapClass(class *quickjs.JSClass, classConstructorOptFn ConstructorOpt, opt
 			}
 			return res
 		} else {
-			return classConstructor.constructorFn(ctx, this, args)
+			res := classConstructor.constructorFn.Call(
+				[]reflect.Value{
+					reflect.ValueOf(ctx),
+					reflect.ValueOf(this),
+					reflect.ValueOf(args),
+				},
+			)
+			return res[0].Interface()
 		}
 	})
 

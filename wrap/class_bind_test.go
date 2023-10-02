@@ -79,14 +79,28 @@ func TestClassConstructor(t *testing.T) {
 				fmt.Println("ClassTest1")
 				return &ExampleStruct{}
 			}),
+		quickjsWrap.WithExportMethodBindList(map[string]string{
+			"QJSGetTest": "GetTest",
+		}),
+		quickjsWrap.WithExportFieldBindList(map[string]string{
+			"Name": "name",
+			"Age":  "Age",
+		}),
 	)
 
 	class2 := rt.CreateGlobalClass("ClassTest2")
 	class2 = quickjsWrap.WrapClass(
 		class2,
-		quickjsWrap.WithQjsConstructorFn(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
+		quickjsWrap.WithQjsConstructorFn(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) ExampleStruct {
 			fmt.Println("ClassTest2")
 			return ExampleStruct{}
+		}),
+		quickjsWrap.WithExportMethodBindList(map[string]string{
+			"QJSGetTest": "GetTest",
+		}),
+		quickjsWrap.WithExportFieldBindList(map[string]string{
+			"Name": "name",
+			"Age":  "Age",
 		}),
 	)
 
