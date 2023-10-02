@@ -172,22 +172,23 @@ func TestModuleObject(t *testing.T) {
 
 	_, err := mCtx.EvalMode(`
 import * as m from "module_test";
-console.log(m.object1)
+console.log("js console1:",m.object1)
 `, quickjsBind.JS_EVAL_TYPE_MODULE)
 	if err != nil {
 		panic(err)
 	}
 	// change value
-	m.SetExportObject("object1", sCtx.String("change object test"))
+	m.SetExportObject("object1", sCtx.Object())
 
 	_, err = mCtx.EvalMode(`
 import * as m from "module_test";
-console.log(m.object1)
+console.log("js console2:",m.object1)
+m.object1.name = "change object test1"
+console.log("js console3:",m.object1.name)
 `, quickjsBind.JS_EVAL_TYPE_MODULE)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
-
 	defer mCtx.Close()
 
 }

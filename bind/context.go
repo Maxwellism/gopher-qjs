@@ -323,11 +323,10 @@ func (ctx *Context) EvalMode(code string, mode EvalMode) (Value, error) {
 	} else {
 		res = ctx.evalMode(code, "", C.int(mode))
 	}
-	var err error
 	if res.IsException() {
-		err = res.Error()
+		return res, ctx.Exception()
 	}
-	return res, err
+	return res, nil
 }
 
 // EvalFile returns a js value with given code and filename.
