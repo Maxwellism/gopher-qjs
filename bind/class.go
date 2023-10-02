@@ -159,7 +159,7 @@ func (j *JSClass) SetFinalizer(fn func(obj interface{})) {
 
 func (j *JSClass) CreateGoJsClassObject(args ...Value) Value {
 	if j.ctx == nil {
-		panic("[CreateGoJsClassObject] the corresponding class is not initialized.If it is a global class, it cannot be called until the ctx has been created; If it is a module, it needs to be initialized before it can be called")
+		panic("[" + j.ClassName + "] the corresponding class is not initialized.If it is a global class, it cannot be called until the ctx has been created; If it is a module, it needs to be initialized before it can be called")
 	}
 	cargs := []C.JSValue{}
 	for _, x := range args {

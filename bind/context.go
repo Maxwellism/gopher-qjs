@@ -21,6 +21,20 @@ type Context struct {
 	asyncProxy *Value
 }
 
+type EvalMode int
+
+const (
+	JS_EVAL_TYPE_GLOBAL            EvalMode = 0
+	JS_EVAL_TYPE_MODULE            EvalMode = 1
+	JS_EVAL_TYPE_DIRECT            EvalMode = 2
+	JS_EVAL_TYPE_INDIRECT          EvalMode = 3
+	JS_EVAL_TYPE_MASK              EvalMode = 3
+	JS_EVAL_FLAG_STRICT            EvalMode = 1 << 3
+	JS_EVAL_FLAG_STRIP             EvalMode = 1 << 4
+	JS_EVAL_FLAG_COMPILE_ONLY      EvalMode = 1 << 5
+	JS_EVAL_FLAG_BACKTRACE_BARRIER EvalMode = 1 << 6
+)
+
 // Free will free context and all associated objects.
 func (ctx *Context) Close() {
 	if ctx.proxy != nil {
@@ -286,6 +300,34 @@ func (ctx *Context) Eval(code string) (Value, error) {
 		return ret, ctx.Exception()
 	}
 	return ret, nil
+}
+
+// EvalMode returns a js value with given code.
+func (ctx *Context) EvalMode(code string, mode EvalMode) (Value, error) {
+
+	codePtr := C.CString(code)
+	defer C.free(unsafe.Pointer(codePtr))
+
+	isModule := C.JS_DetectModule(codePtr, C.size_t(len(code))) != 0
+
+	var res Value
+	if isModule {
+		res = ctx.evalMode(code, "", C.int(mode))
+		if !res.IsException() {
+			if C.getValTag(res.ref) == C.JS_TAG_MODULE {
+				C.js_module_set_import_meta(ctx.ref, res.ref, 1, 1)
+				res = Value{ctx: ctx, ref: C.JS_EvalFunction(ctx.ref, res.ref)}
+				//goto EXIT
+			}
+		}
+	} else {
+		res = ctx.evalMode(code, "", C.int(mode))
+	}
+	var err error
+	if res.IsException() {
+		err = res.Error()
+	}
+	return res, err
 }
 
 // EvalFile returns a js value with given code and filename.

@@ -138,24 +138,22 @@ func goModFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C
 		panic(fmt.Sprintf("not find magic id is %d func", id))
 	}
 
-	crt := C.JS_GetRuntime(ctx)
-
-	goRuntime := &Runtime{
-		ref:  crt,
-		loop: NewLoop(),
+	if entry.ctx == nil {
+		entry.ctx = &Context{
+			ref: ctx,
+			runtime: &Runtime{
+				ref:  C.JS_GetRuntime(ctx),
+				loop: NewLoop(),
+			}}
 	}
-
-	goContext := &Context{
-		ref:     ctx,
-		runtime: goRuntime}
 
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
-		args[i].ctx = goContext
+		args[i].ctx = entry.ctx
 		args[i].ref = refs[i]
 	}
 
-	result := entry.fn(goContext, Value{ctx: goContext, ref: thisVal}, args)
+	result := entry.fn(entry.ctx, Value{ctx: entry.ctx, ref: thisVal}, args)
 
 	return result.ref
 }
@@ -177,6 +175,16 @@ func goClassFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv 
 
 	if jsGoClassFn == nil {
 		return C.JS_NewUndefined()
+	}
+
+	if jsGoClassFn.ctx == nil {
+		jsGoClassFn.ctx = &Context{
+			ref: ctx,
+			runtime: &Runtime{
+				ref:  C.JS_GetRuntime(ctx),
+				loop: NewLoop(),
+			},
+		}
 	}
 
 	args := make([]Value, len(refs))
@@ -209,6 +217,16 @@ func goClassGetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, ar
 		return C.JS_NewUndefined()
 	}
 
+	if jsGoClassFieldGetFn.ctx == nil {
+		jsGoClassFieldGetFn.ctx = &Context{
+			ref: ctx,
+			runtime: &Runtime{
+				ref:  C.JS_GetRuntime(ctx),
+				loop: NewLoop(),
+			},
+		}
+	}
+
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
 		args[i].ctx = jsGoClassFieldGetFn.ctx
@@ -237,6 +255,16 @@ func goClassSetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, ar
 
 	if jsGoClassFieldSetFn == nil {
 		return C.JS_NewUndefined()
+	}
+
+	if jsGoClassFieldSetFn.ctx == nil {
+		jsGoClassFieldSetFn.ctx = &Context{
+			ref: ctx,
+			runtime: &Runtime{
+				ref:  C.JS_GetRuntime(ctx),
+				loop: NewLoop(),
+			},
+		}
 	}
 
 	args := make([]Value, len(refs))
@@ -269,6 +297,16 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 		return C.int32_t(-1)
 	}
 
+	if jsGoClass.ctx == nil {
+		jsGoClass.ctx = &Context{
+			ref: ctx,
+			runtime: &Runtime{
+				ref:  C.JS_GetRuntime(ctx),
+				loop: NewLoop(),
+			},
+		}
+	}
+
 	args := make([]Value, len(refs))
 	for i := 0; i < len(args); i++ {
 		args[i].ctx = jsGoClass.ctx
@@ -296,8 +334,9 @@ func goFinalizerHandle(goClassID C.int, goObjectID C.int32_t) {
 	classID := uint32(goClassID)
 
 	jClass := getClassByID(classID)
-	jClass.finalizerFn(getGoObjectByID(objectID))
-
+	if jClass.finalizerFn != nil {
+		jClass.finalizerFn(getGoObjectByID(objectID))
+	}
 	deleteGoObjectByID(objectID)
 
 }
@@ -343,13 +382,15 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 		C.JS_CFUNC_constructor_magic,
 		C.int(cClassID))
 
-	crt := C.JS_GetRuntime(ctx)
-
-	goRuntime := &Runtime{
-		ref:  crt,
-		loop: NewLoop(),
+	if jsClass.ctx == nil {
+		jsClass.ctx = &Context{
+			ref: ctx,
+			runtime: &Runtime{
+				ref:  C.JS_GetRuntime(ctx),
+				loop: NewLoop(),
+			}}
 	}
-	jsClass.ctx = &Context{ref: ctx, runtime: goRuntime}
+
 	jsClass.constructorFnObj = &Value{ctx: jsClass.ctx, ref: goClassConstructor}
 
 	jsClass.fnLock.Lock()
@@ -455,5 +496,17 @@ func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 	}
 
 	jsMod.classLock.Unlock()
+
+	jsMod.exportObject.Range(func(key, value any) bool {
+		if name, ok := key.(string); ok {
+			cStr := C.CString(name)
+			defer C.free(unsafe.Pointer(cStr))
+
+			jsValue, _ := value.(*Value)
+			C.JS_SetModuleExport(ctx, m, cStr, jsValue.ref)
+		}
+		return true
+	})
+
 	return C.int(0)
 }

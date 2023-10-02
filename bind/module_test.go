@@ -9,7 +9,10 @@ import (
 
 func TestModule(t *testing.T) {
 
-	m := quickjsBind.NewMod("module_test")
+	rt := quickjsBind.NewRuntime()
+	defer rt.Close()
+
+	m := rt.CreateModule("module_test")
 	m.AddExportFn("fnTest", func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
 		fmt.Println("3241")
 		return ctx.Float64(3.123)
@@ -29,12 +32,8 @@ func TestModule(t *testing.T) {
 		return ctx.Null()
 	})
 
-	rt := quickjsBind.NewRuntime()
-	defer rt.Close()
-	rt.AddGoMod(m)
-
 	// Create a new context
-	ctx := rt.NewContext()
+	ctx := rt.NewModuleContext()
 	defer ctx.Close()
 
 	res, err := ctx.EvalFile("./examples/my_module_test.js")
@@ -47,8 +46,10 @@ func TestModule(t *testing.T) {
 
 func TestModClass(t *testing.T) {
 	var classObject *ExampleObject
+	rt := quickjsBind.NewRuntime()
+	defer rt.Close()
 
-	m := quickjsBind.NewMod("module_test")
+	m := rt.CreateModule("module_test")
 
 	class := m.CreateExportClass("classTest")
 
@@ -87,12 +88,8 @@ func TestModClass(t *testing.T) {
 	//	return ctx.Int32(classObject.Age)
 	//})
 
-	rt := quickjsBind.NewRuntime()
-	defer rt.Close()
-	rt.AddGoMod(m)
-
 	// Create a new context
-	ctx := rt.NewContext()
+	ctx := rt.NewModuleContext()
 	defer ctx.Close()
 
 	res, err := ctx.EvalFile("./examples/my_module_class_test.js")
@@ -105,7 +102,10 @@ func TestModClass(t *testing.T) {
 func TestCreateModClassObject(t *testing.T) {
 	var classObject *ExampleObject
 
-	m := quickjsBind.NewMod("module_test")
+	rt := quickjsBind.NewRuntime()
+	defer rt.Close()
+
+	m := rt.CreateModule("module_test")
 
 	class := m.CreateExportClass("classTest")
 
@@ -131,12 +131,8 @@ func TestCreateModClassObject(t *testing.T) {
 		fmt.Println("go object value is:", string(data))
 	})
 
-	rt := quickjsBind.NewRuntime()
-	defer rt.Close()
-	rt.AddGoMod(m)
-
 	// Create a new context
-	ctx := rt.NewContext()
+	ctx := rt.NewModuleContext()
 	defer ctx.Close()
 
 	res, err := ctx.EvalFile("./examples/my_module_class_test.js")
@@ -159,4 +155,39 @@ func TestCreateModClassObject(t *testing.T) {
 		panic(err)
 	}
 	fmt.Println(string(data))
+}
+
+func TestModuleObject(t *testing.T) {
+	rt := quickjsBind.NewRuntime()
+	defer rt.Close()
+
+	sCtx := rt.NewSimpleContext()
+	defer sCtx.Close()
+
+	m := rt.CreateModule("module_test")
+
+	m.AddExportObject("object1", sCtx.Int32(32))
+
+	mCtx := rt.NewModuleContext()
+
+	_, err := mCtx.EvalMode(`
+import * as m from "module_test";
+console.log(m.object1)
+`, quickjsBind.JS_EVAL_TYPE_MODULE)
+	if err != nil {
+		panic(err)
+	}
+	// change value
+	m.SetExportObject("object1", sCtx.String("change object test"))
+
+	_, err = mCtx.EvalMode(`
+import * as m from "module_test";
+console.log(m.object1)
+`, quickjsBind.JS_EVAL_TYPE_MODULE)
+	if err != nil {
+		panic(err)
+	}
+
+	defer mCtx.Close()
+
 }

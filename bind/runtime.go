@@ -51,10 +51,10 @@ func (r Runtime) SetMaxStackSize(stack_size uint32) {
 	C.JS_SetMaxStackSize(r.ref, C.size_t(stack_size))
 }
 
-// NewContext creates a new JavaScript context.
+// NewModuleContext creates a new JavaScript context.
 // enable BigFloat/BigDecimal support and enable .
 // enable operator overloading.
-func (r Runtime) NewContext() *Context {
+func (r Runtime) NewModuleContext() *Context {
 	ref := C.JS_NewContext(r.ref)
 
 	C.js_std_init_handlers(r.ref)
@@ -86,6 +86,18 @@ func (r Runtime) NewContext() *Context {
 	//	ref,
 	//	cStr,
 	//	(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoInitModule)))
+
+	return &Context{ref: ref, runtime: &r}
+}
+
+// NewSimpleContext create a simple context with no modules and custom class
+func (r Runtime) NewSimpleContext() *Context {
+	ref := C.JS_NewContext(r.ref)
+
+	C.JS_AddIntrinsicBigFloat(ref)
+	C.JS_AddIntrinsicBigDecimal(ref)
+	C.JS_AddIntrinsicOperators(ref)
+	C.JS_EnableBignumExt(ref, C.int(1))
 
 	return &Context{ref: ref, runtime: &r}
 }
@@ -146,9 +158,15 @@ func (r Runtime) ExecuteAllPendingJobs() error {
 	return err
 }
 
-// AddGoMod add go module
-func (r *Runtime) AddGoMod(m *JSModule) {
+//// AddGoModule add go module
+//func (r *Runtime) AddGoModule(m *JSModule) {
+//	r.goModList = append(r.goModList, m)
+//}
+
+func (r *Runtime) CreateModule(moduleName string) *JSModule {
+	m := newMod(moduleName)
 	r.goModList = append(r.goModList, m)
+	return m
 }
 
 // CreateGlobalClass add context global class

@@ -3,7 +3,7 @@ package quickjsWrap_test
 import (
 	"fmt"
 	quickjs "github.com/Maxwellism/gopher-qjs/bind"
-	"github.com/Maxwellism/gopher-qjs/wrap"
+	quickjsWrap "github.com/Maxwellism/gopher-qjs/wrap"
 	"testing"
 )
 
@@ -16,7 +16,7 @@ func TestWrapFn(t *testing.T) {
 	rt := quickjs.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewContext()
+	ctx := rt.NewModuleContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("wrapTestFn", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {

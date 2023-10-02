@@ -3,7 +3,7 @@ package quickjsWrap_test
 import (
 	"fmt"
 	quickjs "github.com/Maxwellism/gopher-qjs/bind"
-	"github.com/Maxwellism/gopher-qjs/wrap"
+	quickjsWrap "github.com/Maxwellism/gopher-qjs/wrap"
 	"testing"
 )
 
@@ -46,7 +46,7 @@ func TestClassBind(t *testing.T) {
 		}),
 	)
 	// Create a new context
-	ctx := rt.NewContext()
+	ctx := rt.NewModuleContext()
 	defer ctx.Close()
 
 	ret, err := ctx.Eval(`
@@ -105,7 +105,7 @@ func TestClassConstructor(t *testing.T) {
 	)
 
 	// Create a new context
-	ctx := rt.NewContext()
+	ctx := rt.NewModuleContext()
 	defer ctx.Close()
 
 	ret, err := ctx.Eval(`
