@@ -18,12 +18,26 @@ type moduleFuncEntry struct {
 	fn     func(ctx *Context, this Value, args []Value) Value
 }
 
+var goModLock sync.Mutex
 var moduleMap = make(map[string]*JSModule)
 
 var goModFnPtrLen int32
-var goModLock sync.Mutex
 var goModFnLock sync.Mutex
 var goModFnPtrStore = make(map[int32]*moduleFuncEntry)
+
+func putModFn(v *moduleFuncEntry) int32 {
+	goModFnLock.Lock()
+	defer goModFnLock.Unlock()
+	id := atomic.AddInt32(&goModFnPtrLen, 1) - 1
+	goModFnPtrStore[id] = v
+	return id
+}
+
+func getModFnByID(id int32) *moduleFuncEntry {
+	goModFnLock.Lock()
+	defer goModFnLock.Unlock()
+	return goModFnPtrStore[id]
+}
 
 type JSModule struct {
 	modName     string
@@ -43,18 +57,9 @@ func NewMod(modName string) *JSModule {
 }
 
 func (m *JSModule) storeFuncModPtr(v *moduleFuncEntry) int32 {
-	id := atomic.AddInt32(&goModFnPtrLen, 1) - 1
-	goModFnLock.Lock()
-	defer goModFnLock.Unlock()
-	goModFnPtrStore[id] = v
+	id := putModFn(v)
 	m.fnIDList = append(m.fnIDList, id)
 	return id
-}
-
-func restoreFuncModPtr(ptr int32) *moduleFuncEntry {
-	goModFnLock.Lock()
-	defer goModFnLock.Unlock()
-	return goModFnPtrStore[ptr]
 }
 
 func (m *JSModule) AddExportFn(fnName string, fn func(ctx *Context, this Value, args []Value) Value) {
@@ -85,7 +90,7 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 		(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoModInit)))
 
 	for _, id := range m.fnIDList {
-		fnInfo := restoreFuncModPtr(id)
+		fnInfo := getModFnByID(id)
 		goStr := fnInfo.fnName
 		cStr1 := C.CString(goStr)
 		defer C.free(unsafe.Pointer(cStr1))
@@ -93,7 +98,7 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 	}
 
 	for _, classID := range m.classIDList {
-		jsClass := jsClassIDMap[classID]
+		jsClass := getClassByID(classID)
 		goStr := jsClass.ClassName
 		cStr1 := C.CString(goStr)
 		defer C.free(unsafe.Pointer(cStr1))

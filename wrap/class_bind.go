@@ -161,7 +161,6 @@ func bindConstructor(constructorFnType reflect.Value, args []quickjs.Value, opt 
 func bindJsClassMethod(class *quickjs.JSClass, opt *classOpts) {
 	var wg sync.WaitGroup
 	for goMethodName, jsMethodName := range opt.methodBindMap {
-		wg.Add(1)
 		if jsMethodName == "" {
 			jsMethodName = goMethodName
 		}
@@ -192,8 +191,6 @@ func bindJsClassMethod(class *quickjs.JSClass, opt *classOpts) {
 				return GoObjectToJsValue(res[0].Interface(), ctx)
 			})
 		}(jsMethodName, goMethodName)
-
-		wg.Done()
 	}
 	wg.Wait()
 }
@@ -216,7 +213,6 @@ func getBindFnArgs(fnType reflect.Type, args []quickjs.Value, opt *classOpts) ([
 }
 
 func bindField(class *quickjs.JSClass, structType reflect.Type, opt *classOpts) {
-	var wg sync.WaitGroup
 	for goFieldName, jsFieldName := range opt.exportFieldBindMap {
 		_, ok := structType.FieldByName(goFieldName)
 		if !ok {
@@ -228,7 +224,6 @@ func bindField(class *quickjs.JSClass, structType reflect.Type, opt *classOpts) 
 		}
 		// field set
 		go func(jsField, goField string) {
-			wg.Add(1)
 			class.AddClassSetFn(jsField, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
 				goObject, err := this.GetBindGoObject()
 				if err != nil {
@@ -250,12 +245,10 @@ func bindField(class *quickjs.JSClass, structType reflect.Type, opt *classOpts) 
 				}
 				return ctx.Undefined()
 			})
-			wg.Done()
 		}(jsFieldName, goFieldName)
 
 		// field get
 		go func(jsField, goField string) {
-			wg.Add(1)
 			class.AddClassGetFn(jsField, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
 				goObject, err := this.GetBindGoObject()
 				if err != nil {
@@ -273,10 +266,8 @@ func bindField(class *quickjs.JSClass, structType reflect.Type, opt *classOpts) 
 
 				return bindFieldGet(structValue, goField, ctx)
 			})
-			wg.Done()
 		}(jsFieldName, goFieldName)
 	}
-	wg.Wait()
 }
 
 func bindFieldGet(structValue reflect.Value, fieldName string, ctx *quickjs.Context) quickjs.Value {
