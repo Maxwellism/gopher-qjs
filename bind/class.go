@@ -111,7 +111,9 @@ type jsClassFieldFnEntry struct {
 type JSClass struct {
 	ClassName        string
 	goClassID        uint32
+	fnLock           sync.Mutex
 	fnIds            []int32
+	fieldLock        sync.Mutex
 	fieldFn          map[string]*int32
 	constructorFn    func(ctx *Context, this Value, args []Value) interface{}
 	constructorFnObj *Value
@@ -178,6 +180,8 @@ func (j *JSClass) AddClassFn(fnName string, fn func(ctx *Context, this Value, ar
 }
 
 func (j *JSClass) AddClassGetFn(fieldName string, fn func(ctx *Context, this Value, args []Value) Value) {
+	j.fieldLock.Lock()
+	defer j.fieldLock.Unlock()
 	if id := j.fieldFn[fieldName]; id == nil {
 		classFnEntry := &jsClassFieldFnEntry{
 			getFn:     fn,
@@ -193,6 +197,8 @@ func (j *JSClass) AddClassGetFn(fieldName string, fn func(ctx *Context, this Val
 }
 
 func (j *JSClass) AddClassSetFn(fieldName string, fn func(ctx *Context, this Value, args []Value) Value) {
+	j.fieldLock.Lock()
+	defer j.fieldLock.Unlock()
 	if id := j.fieldFn[fieldName]; id == nil {
 		classFnEntry := &jsClassFieldFnEntry{
 			setFn:     fn,

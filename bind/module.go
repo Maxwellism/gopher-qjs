@@ -41,7 +41,9 @@ func getModFnByID(id int32) *moduleFuncEntry {
 
 type JSModule struct {
 	modName     string
+	fnLock      sync.Mutex
 	fnIDList    []int32
+	classLock   sync.Mutex
 	classIDList []uint32
 }
 
@@ -57,6 +59,9 @@ func NewMod(modName string) *JSModule {
 }
 
 func (m *JSModule) storeFuncModPtr(v *moduleFuncEntry) int32 {
+	m.fnLock.Lock()
+	defer m.fnLock.Unlock()
+
 	id := putModFn(v)
 	m.fnIDList = append(m.fnIDList, id)
 	return id
@@ -78,6 +83,9 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 			fmt.Printf("Go panic: %v\n%s", err, buf)
 		}
 	}()
+	m.fnLock.Lock()
+	defer m.fnLock.Unlock()
+
 	cStr := C.CString(m.modName)
 	defer C.free(unsafe.Pointer(cStr))
 	// JSModuleInitFunc
@@ -108,6 +116,9 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 }
 
 func (m *JSModule) CreateExportClass(className string) *JSClass {
+	m.classLock.Lock()
+	defer m.classLock.Unlock()
+
 	jsClass := newModClass(className)
 	m.classIDList = append(m.classIDList, jsClass.goClassID)
 	return jsClass

@@ -352,6 +352,7 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 	jsClass.ctx = &Context{ref: ctx, runtime: goRuntime}
 	jsClass.constructorFnObj = &Value{ctx: jsClass.ctx, ref: goClassConstructor}
 
+	jsClass.fnLock.Lock()
 	for _, fnID := range jsClass.fnIds {
 		goFnInfo := getClassFnByID(fnID)
 
@@ -370,7 +371,9 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 
 		C.JS_SetPropertyStr(ctx, goProto, goClassFnName, goFnObj)
 	}
+	jsClass.fnLock.Unlock()
 
+	jsClass.fieldLock.Lock()
 	for fieldName, id := range jsClass.fieldFn {
 
 		fieldInfo := jsClassFieldFnPtrStore[*id]
@@ -397,6 +400,7 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 		fieldNameAtom := C.JS_NewAtom(ctx, goClassFieldName)
 		C.JS_DefinePropertyGetSet(ctx, goProto, fieldNameAtom, goGetFnObj, goSetFnObj, C.JS_PROP_CONFIGURABLE)
 	}
+	jsClass.fieldLock.Unlock()
 
 	if m != nil {
 		C.JS_SetClassProto(ctx, cClassID, goProto)
@@ -421,6 +425,7 @@ func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 	a := Atom{ctx: &Context{ref: ctx}, ref: jsAtom}
 	jsMod := moduleMap[a.String()]
 
+	jsMod.fnLock.Lock()
 	for _, id := range jsMod.fnIDList {
 
 		fnInfo := getModFnByID(id)
@@ -440,11 +445,15 @@ func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 
 		C.JS_SetModuleExport(ctx, m, cStr, val)
 	}
+	jsMod.fnLock.Unlock()
+
+	jsMod.classLock.Lock()
 
 	for _, goClassID := range jsMod.classIDList {
 		jsClass := getClassByID(goClassID)
 		goClassBuild(ctx, m, jsClass)
 	}
 
+	jsMod.classLock.Unlock()
 	return C.int(0)
 }
