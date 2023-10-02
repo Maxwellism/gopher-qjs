@@ -13,27 +13,87 @@ import (
 var jsClassLock sync.Mutex
 var jsClassIDMap = make(map[uint32]*JSClass)
 
+func putJsClass(id uint32, jsClass *JSClass) {
+	jsClassLock.Lock()
+	defer jsClassLock.Unlock()
+	jsClassIDMap[id] = jsClass
+}
+func getClassByID(id uint32) *JSClass {
+	jsClassLock.Lock()
+	defer jsClassLock.Unlock()
+	return jsClassIDMap[id]
+}
+
+var jsGlobalClassLock sync.Mutex
 var jsGlobalClassIDMap = make(map[uint32]*JSClass)
+
+func putGlobalJsClass(id uint32, jsClass *JSClass) {
+	jsGlobalClassLock.Lock()
+	defer jsGlobalClassLock.Unlock()
+	jsGlobalClassIDMap[id] = jsClass
+}
 
 var jsClassMapGoObjectPtrLen int32
 var jsClassMapGoObjectLock sync.Mutex
 var jsClassMapGoObject = make(map[int32]interface{})
 
-func storeGoObjectPtr(v interface{}) int32 {
+func pushGoObjectByJS(v interface{}) int32 {
 	id := atomic.AddInt32(&jsClassMapGoObjectPtrLen, 1) - 1
 	jsClassMapGoObjectLock.Lock()
 	defer jsClassMapGoObjectLock.Unlock()
 	jsClassMapGoObject[id] = v
 	return id
 }
+func getGoObjectByID(id int32) interface{} {
+	jsClassMapGoObjectLock.Lock()
+	defer jsClassMapGoObjectLock.Unlock()
+	return jsClassMapGoObject[id]
+}
+func putGoObject(id int32, v interface{}) {
+	jsClassMapGoObjectLock.Lock()
+	defer jsClassMapGoObjectLock.Unlock()
+	jsClassMapGoObject[id] = v
+}
+func deleteGoObjectByID(id int32) {
+	jsClassMapGoObjectLock.Lock()
+	defer jsClassMapGoObjectLock.Unlock()
+	delete(jsClassMapGoObject, id)
+}
 
 var jsClassFnPtrLen int32
 var jsClassFnLock sync.Mutex
 var jsClassFnPtrStore = make(map[int32]*jsClassFnEntry)
 
+func pushClassFn(v *jsClassFnEntry) int32 {
+	jsClassFnLock.Lock()
+	defer jsClassFnLock.Unlock()
+	id := atomic.AddInt32(&jsClassFnPtrLen, 1) - 1
+	jsClassFnPtrStore[id] = v
+	return id
+}
+func getClassFnByID(id int32) *jsClassFnEntry {
+	jsClassFnLock.Lock()
+	defer jsClassFnLock.Unlock()
+	return jsClassFnPtrStore[id]
+}
+
 var jsClassFieldFnPtrLen int32
 var jsClassFieldFnLock sync.Mutex
 var jsClassFieldFnPtrStore = make(map[int32]*jsClassFieldFnEntry)
+
+func pushClassFieldFn(v *jsClassFieldFnEntry) int32 {
+	id := atomic.AddInt32(&jsClassFieldFnPtrLen, 1) - 1
+	jsClassFieldFnLock.Lock()
+	defer jsClassFieldFnLock.Unlock()
+	jsClassFieldFnPtrStore[id] = v
+	return id
+}
+
+func getClassFieldFnByID(id int32) *jsClassFieldFnEntry {
+	jsClassFieldFnLock.Lock()
+	defer jsClassFieldFnLock.Unlock()
+	return jsClassFieldFnPtrStore[id]
+}
 
 type jsClassFnEntry struct {
 	fnName string
@@ -65,15 +125,10 @@ func newGlobalClass(className string) *JSClass {
 		fieldFn:   make(map[string]*int32),
 		ClassName: className,
 	}
-	jsClassLock.Lock()
-
 	cGoClassID := C.JS_NewClassID(new(C.JSClassID))
 	jsClass.goClassID = uint32(cGoClassID)
-	jsClassIDMap[jsClass.goClassID] = jsClass
-
-	jsGlobalClassIDMap[jsClass.goClassID] = jsClass
-
-	defer jsClassLock.Unlock()
+	putJsClass(jsClass.goClassID, jsClass)
+	putGlobalJsClass(jsClass.goClassID, jsClass)
 	return jsClass
 }
 
@@ -83,30 +138,11 @@ func newModClass(className string) *JSClass {
 		fieldFn:   make(map[string]*int32),
 		ClassName: className,
 	}
-	jsClassLock.Lock()
-
 	cGoClassID := C.JS_NewClassID(new(C.JSClassID))
 	jsClass.goClassID = uint32(cGoClassID)
-	jsClassIDMap[jsClass.goClassID] = jsClass
-	defer jsClassLock.Unlock()
+
+	putJsClass(jsClass.goClassID, jsClass)
 	return jsClass
-}
-
-func (j *JSClass) storeFuncClassPtr(v *jsClassFnEntry) int32 {
-	id := atomic.AddInt32(&jsClassFnPtrLen, 1) - 1
-	jsClassFnLock.Lock()
-	defer jsClassFnLock.Unlock()
-	jsClassFnPtrStore[id] = v
-	j.fnIds = append(j.fnIds, id)
-	return id
-}
-
-func storeClassFieldFnPtr(v *jsClassFieldFnEntry) int32 {
-	id := atomic.AddInt32(&jsClassFieldFnPtrLen, 1) - 1
-	jsClassFieldFnLock.Lock()
-	defer jsClassFieldFnLock.Unlock()
-	jsClassFieldFnPtrStore[id] = v
-	return id
 }
 
 func (j *JSClass) SetConstructor(fn func(ctx *Context, this Value, args []Value) interface{}) {
@@ -138,7 +174,7 @@ func (j *JSClass) AddClassFn(fnName string, fn func(ctx *Context, this Value, ar
 		fn:     fn,
 		fnName: fnName,
 	}
-	j.storeFuncClassPtr(classFnEntry)
+	pushClassFn(classFnEntry)
 }
 
 func (j *JSClass) AddClassGetFn(fieldName string, fn func(ctx *Context, this Value, args []Value) Value) {
@@ -147,10 +183,10 @@ func (j *JSClass) AddClassGetFn(fieldName string, fn func(ctx *Context, this Val
 			getFn:     fn,
 			fieldName: fieldName,
 		}
-		fnId := storeClassFieldFnPtr(classFnEntry)
+		fnId := pushClassFieldFn(classFnEntry)
 		j.fieldFn[fieldName] = &fnId
 	} else {
-		classFnEntry := jsClassFieldFnPtrStore[*id]
+		classFnEntry := getClassFieldFnByID(*id)
 		classFnEntry.getFn = fn
 	}
 
@@ -162,10 +198,10 @@ func (j *JSClass) AddClassSetFn(fieldName string, fn func(ctx *Context, this Val
 			setFn:     fn,
 			fieldName: fieldName,
 		}
-		fnId := storeClassFieldFnPtr(classFnEntry)
+		fnId := pushClassFieldFn(classFnEntry)
 		j.fieldFn[fieldName] = &fnId
 	} else {
-		classFnEntry := jsClassFieldFnPtrStore[*id]
+		classFnEntry := getClassFieldFnByID(*id)
 		classFnEntry.setFn = fn
 	}
 }

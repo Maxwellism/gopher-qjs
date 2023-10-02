@@ -57,9 +57,9 @@ func TestNewClass(t *testing.T) {
 	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	ctx.Globals().Set("getGoObject", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	ctx.Globals().Set("getGoObjectByID", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
 		goValue, err := quickjs.GetGoObject[*ExampleObject](args[0])
-		fmt.Println("====================getGoObject fn=================")
+		fmt.Println("====================getGoObjectByID fn=================")
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -72,7 +72,7 @@ let c = new classTest("class test",32);
 console.log(c.Name)
 c.Name = "class test1"
 console.log(c.Name)
-getGoObject(c)
+getGoObjectByID(c)
 //console.log(c.testClassFn())
 `)
 	defer res.Free()

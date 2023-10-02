@@ -132,7 +132,7 @@ func goModFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv *C
 
 	id := int32(magic)
 
-	entry := restoreFuncModPtr(id)
+	entry := getModFnByID(id)
 
 	if entry == nil {
 		panic(fmt.Sprintf("not find magic id is %d func", id))
@@ -173,7 +173,7 @@ func goClassFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, argv 
 
 	goClassFnId := int32(magic)
 
-	jsGoClassFn := jsClassFnPtrStore[goClassFnId]
+	jsGoClassFn := getClassFnByID(goClassFnId)
 
 	if jsGoClassFn == nil {
 		return C.JS_NewUndefined()
@@ -263,7 +263,7 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 
 	goClassId := uint32(magic)
 
-	jsGoClass := jsClassIDMap[goClassId]
+	jsGoClass := getClassByID(goClassId)
 
 	if jsGoClass == nil {
 		return C.int32_t(-1)
@@ -276,7 +276,7 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 	}
 
 	v := jsGoClass.constructorFn(jsGoClass.ctx, Value{ctx: jsGoClass.ctx, ref: newTarget}, args)
-	objectID := storeGoObjectPtr(v)
+	objectID := pushGoObjectByJS(v)
 
 	return C.int32_t(objectID)
 }
@@ -295,10 +295,10 @@ func goFinalizerHandle(goClassID C.int, goObjectID C.int32_t) {
 
 	classID := uint32(goClassID)
 
-	jClass := jsClassIDMap[classID]
-	jClass.finalizerFn(jsClassMapGoObject[objectID])
+	jClass := getClassByID(classID)
+	jClass.finalizerFn(getGoObjectByID(objectID))
 
-	delete(jsClassMapGoObject, objectID)
+	deleteGoObjectByID(objectID)
 
 }
 
@@ -311,6 +311,8 @@ func registerGoClassHandle(ctx *C.JSContext) {
 			fmt.Printf("Go panic: %v\n%s", err, buf)
 		}
 	}()
+	jsGlobalClassLock.Lock()
+	defer jsGlobalClassLock.Unlock()
 	for _, jsClass := range jsGlobalClassIDMap {
 		goClassBuild(ctx, nil, jsClass)
 	}
@@ -351,7 +353,7 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 	jsClass.constructorFnObj = &Value{ctx: jsClass.ctx, ref: goClassConstructor}
 
 	for _, fnID := range jsClass.fnIds {
-		goFnInfo := jsClassFnPtrStore[fnID]
+		goFnInfo := getClassFnByID(fnID)
 
 		goFnInfo.ctx = jsClass.ctx
 
@@ -421,7 +423,7 @@ func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 
 	for _, id := range jsMod.fnIDList {
 
-		fnInfo := restoreFuncModPtr(id)
+		fnInfo := getModFnByID(id)
 
 		goStr := fnInfo.fnName
 
@@ -440,7 +442,7 @@ func GoInitModule(ctx *C.JSContext, m *C.JSModuleDef) C.int {
 	}
 
 	for _, goClassID := range jsMod.classIDList {
-		jsClass := jsClassIDMap[goClassID]
+		jsClass := getClassByID(goClassID)
 		goClassBuild(ctx, m, jsClass)
 	}
 
