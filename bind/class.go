@@ -30,6 +30,7 @@ var jsGlobalClassIDMap = make(map[uint32]*JSClass)
 func putGlobalJsClass(id uint32, jsClass *JSClass) {
 	jsGlobalClassLock.Lock()
 	defer jsGlobalClassLock.Unlock()
+	putJsClass(jsClass.goClassID, jsClass)
 	jsGlobalClassIDMap[id] = jsClass
 }
 
@@ -71,6 +72,13 @@ func pushClassFn(v *jsClassFnEntry) int32 {
 	jsClassFnPtrStore[id] = v
 	return id
 }
+
+func setClassFn(id int32, v *jsClassFnEntry) {
+	jsClassFnLock.Lock()
+	defer jsClassFnLock.Unlock()
+	jsClassFnPtrStore[id] = v
+}
+
 func getClassFnByID(id int32) *jsClassFnEntry {
 	jsClassFnLock.Lock()
 	defer jsClassFnLock.Unlock()
@@ -109,35 +117,28 @@ type jsClassFieldFnEntry struct {
 }
 
 type JSClass struct {
-	ClassName        string
-	goClassID        uint32
-	fnLock           sync.Mutex
-	fnIds            []int32
-	fieldLock        sync.Mutex
-	fieldFn          map[string]*int32
-	constructorFn    func(ctx *Context, this Value, args []Value) interface{}
-	constructorFnObj *Value
-	ctx              *Context
-	finalizerFn      func(goObject interface{})
+	ClassName      string
+	goClassID      uint32
+	fnList         sync.Map
+	fieldFnList    sync.Map
+	constructorFn  func(ctx *Context, args []Value) interface{}
+	classStaticVal *Value
+	ctx            *Context
+	finalizerFn    func(goObject interface{})
 }
 
 func newGlobalClass(className string) *JSClass {
 	jsClass := &JSClass{
-		fnIds:     []int32{},
-		fieldFn:   make(map[string]*int32),
 		ClassName: className,
 	}
 	cGoClassID := C.JS_NewClassID(new(C.JSClassID))
 	jsClass.goClassID = uint32(cGoClassID)
-	putJsClass(jsClass.goClassID, jsClass)
 	putGlobalJsClass(jsClass.goClassID, jsClass)
 	return jsClass
 }
 
 func newModClass(className string) *JSClass {
 	jsClass := &JSClass{
-		fnIds:     []int32{},
-		fieldFn:   make(map[string]*int32),
 		ClassName: className,
 	}
 	cGoClassID := C.JS_NewClassID(new(C.JSClassID))
@@ -147,7 +148,7 @@ func newModClass(className string) *JSClass {
 	return jsClass
 }
 
-func (j *JSClass) SetConstructor(fn func(ctx *Context, this Value, args []Value) interface{}) {
+func (j *JSClass) SetConstructor(fn func(ctx *Context, args []Value) interface{}) {
 	//j.constructorID = j.storeConstructorPtr(getFn)
 	j.constructorFn = fn
 }
@@ -166,9 +167,9 @@ func (j *JSClass) CreateGoJsClassObject(args ...Value) Value {
 		cargs = append(cargs, x.ref)
 	}
 	if len(args) == 0 {
-		return Value{ctx: j.ctx, ref: C.JS_CallConstructor(j.ctx.ref, j.constructorFnObj.ref, 0, nil)}
+		return Value{ctx: j.ctx, ref: C.JS_CallConstructor(j.ctx.ref, j.classStaticVal.ref, 0, nil)}
 	}
-	return Value{ctx: j.ctx, ref: C.JS_CallConstructor(j.ctx.ref, j.constructorFnObj.ref, C.int(len(args)), &cargs[0])}
+	return Value{ctx: j.ctx, ref: C.JS_CallConstructor(j.ctx.ref, j.classStaticVal.ref, C.int(len(args)), &cargs[0])}
 }
 
 func (j *JSClass) AddClassFn(fnName string, fn func(ctx *Context, this Value, args []Value) Value) {
@@ -176,38 +177,46 @@ func (j *JSClass) AddClassFn(fnName string, fn func(ctx *Context, this Value, ar
 		fn:     fn,
 		fnName: fnName,
 	}
-	pushClassFn(classFnEntry)
+	if idValue, ok := j.fnList.Load(fnName); !ok {
+		fnId := pushClassFn(classFnEntry)
+		j.fnList.Store(fnName, fnId)
+	} else {
+		id, _ := idValue.(int32)
+		setClassFn(id, classFnEntry)
+	}
+}
+
+func (j *JSClass) GetClassValue() *Value {
+	return j.classStaticVal
 }
 
 func (j *JSClass) AddClassGetFn(fieldName string, fn func(ctx *Context, this Value, args []Value) Value) {
-	j.fieldLock.Lock()
-	defer j.fieldLock.Unlock()
-	if id := j.fieldFn[fieldName]; id == nil {
+	if id, ok := j.fieldFnList.Load(fieldName); !ok {
 		classFnEntry := &jsClassFieldFnEntry{
 			getFn:     fn,
 			fieldName: fieldName,
 		}
 		fnId := pushClassFieldFn(classFnEntry)
-		j.fieldFn[fieldName] = &fnId
+		j.fieldFnList.Store(fieldName, fnId)
 	} else {
-		classFnEntry := getClassFieldFnByID(*id)
+		fnId, _ := id.(int32)
+		classFnEntry := getClassFieldFnByID(fnId)
 		classFnEntry.getFn = fn
 	}
 
 }
 
 func (j *JSClass) AddClassSetFn(fieldName string, fn func(ctx *Context, this Value, args []Value) Value) {
-	j.fieldLock.Lock()
-	defer j.fieldLock.Unlock()
-	if id := j.fieldFn[fieldName]; id == nil {
+	if id, ok := j.fieldFnList.Load(fieldName); !ok {
 		classFnEntry := &jsClassFieldFnEntry{
 			setFn:     fn,
 			fieldName: fieldName,
 		}
 		fnId := pushClassFieldFn(classFnEntry)
-		j.fieldFn[fieldName] = &fnId
+		j.fieldFnList.Store(fieldName, fnId)
 	} else {
-		classFnEntry := getClassFieldFnByID(*id)
+		fnId, _ := id.(int32)
+		classFnEntry := getClassFieldFnByID(fnId)
 		classFnEntry.setFn = fn
 	}
 }

@@ -313,7 +313,7 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 		args[i].ref = refs[i]
 	}
 
-	v := jsGoClass.constructorFn(jsGoClass.ctx, Value{ctx: jsGoClass.ctx, ref: newTarget}, args)
+	v := jsGoClass.constructorFn(jsGoClass.ctx, args)
 	objectID := pushGoObjectByJS(v)
 
 	return C.int32_t(objectID)
@@ -376,7 +376,7 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 
 	goClassConstructor := C.JS_NewCFunctionMagic(
 		ctx,
-		(*C.JSCFunctionMagic)(unsafe.Pointer(C.goClassConstructor)),
+		(*C.JSCFunctionMagic)(unsafe.Pointer(C.InvokeGoClassConstructor)),
 		goClassName,
 		0,
 		C.JS_CFUNC_constructor_magic,
@@ -391,10 +391,10 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 			}}
 	}
 
-	jsClass.constructorFnObj = &Value{ctx: jsClass.ctx, ref: goClassConstructor}
+	jsClass.classStaticVal = &Value{ctx: jsClass.ctx, ref: goClassConstructor}
 
-	jsClass.fnLock.Lock()
-	for _, fnID := range jsClass.fnIds {
+	jsClass.fnList.Range(func(fnName, id any) bool {
+		fnID, _ := id.(int32)
 		goFnInfo := getClassFnByID(fnID)
 
 		goFnInfo.ctx = jsClass.ctx
@@ -411,14 +411,16 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 			C.int(fnID))
 
 		C.JS_SetPropertyStr(ctx, goProto, goClassFnName, goFnObj)
-	}
-	jsClass.fnLock.Unlock()
 
-	jsClass.fieldLock.Lock()
-	for fieldName, id := range jsClass.fieldFn {
+		return true
+	})
 
-		fieldInfo := jsClassFieldFnPtrStore[*id]
+	jsClass.fieldFnList.Range(func(field, id any) bool {
+		fnId, _ := id.(int32)
+		fieldInfo := jsClassFieldFnPtrStore[fnId]
 		fieldInfo.ctx = jsClass.ctx
+
+		fieldName, _ := field.(string)
 
 		goClassFieldName := C.CString(fieldName)
 		defer C.free(unsafe.Pointer(goClassFieldName))
@@ -429,19 +431,20 @@ func goClassBuild(ctx *C.JSContext, m *C.JSModuleDef, jsClass *JSClass) {
 			goClassFieldName,
 			0,
 			C.JS_CFUNC_generic_magic,
-			C.int(*id))
+			C.int(fnId))
 		goSetFnObj := C.JS_NewCFunctionMagic(
 			ctx,
 			(*C.JSCFunctionMagic)(unsafe.Pointer(C.InvokeGoClassSetFn)),
 			goClassFieldName,
 			0,
 			C.JS_CFUNC_generic_magic,
-			C.int(*id))
+			C.int(fnId))
 
 		fieldNameAtom := C.JS_NewAtom(ctx, goClassFieldName)
 		C.JS_DefinePropertyGetSet(ctx, goProto, fieldNameAtom, goGetFnObj, goSetFnObj, C.JS_PROP_CONFIGURABLE)
-	}
-	jsClass.fieldLock.Unlock()
+
+		return true
+	})
 
 	if m != nil {
 		C.JS_SetClassProto(ctx, cClassID, goProto)

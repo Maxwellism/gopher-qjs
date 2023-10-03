@@ -16,7 +16,7 @@ func TestWrapFn(t *testing.T) {
 	rt := quickjs.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("wrapTestFn", ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {

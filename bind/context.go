@@ -242,7 +242,7 @@ func (ctx *Context) eval(code string) Value {
 
 	filenamePtr := C.CString("code")
 	defer C.free(unsafe.Pointer(filenamePtr))
-	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, C.JS_EVAL_TYPE_GLOBAL)}
+	return Value{ctx: ctx, ref: C.JS_Eval(ctx.ref, codePtr, C.size_t(len(code)), filenamePtr, C.int(JS_EVAL_TYPE_GLOBAL))}
 }
 
 func (ctx *Context) evalMode(code, filename string, evalType C.int) Value {
@@ -266,7 +266,7 @@ func (ctx *Context) evalFile(code, filename string) Value {
 
 	var res Value
 	if isModule {
-		res = ctx.evalMode(code, filename, C.JS_EVAL_TYPE_MODULE|C.JS_EVAL_FLAG_COMPILE_ONLY)
+		res = ctx.evalMode(code, filename, C.int(JS_EVAL_TYPE_MODULE|JS_EVAL_FLAG_COMPILE_ONLY))
 		if !res.IsException() {
 			if C.getValTag(res.ref) == C.JS_TAG_MODULE {
 				C.js_module_set_import_meta(ctx.ref, res.ref, 1, 1)
@@ -275,7 +275,7 @@ func (ctx *Context) evalFile(code, filename string) Value {
 			}
 		}
 	} else {
-		res = ctx.evalMode(code, filename, 0)
+		res = ctx.evalMode(code, filename, C.int(JS_EVAL_TYPE_GLOBAL))
 	}
 	return res
 }

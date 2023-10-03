@@ -14,9 +14,9 @@ func TestArgTest(t *testing.T) {
 	defer rt.Close()
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 
-	testParams := []gopher_qjs_dev.paramData{
+	testParams := []paramData{
 		{
 			arg:     int(8),
 			jsValue: ctx.Int32(32),
@@ -26,7 +26,7 @@ func TestArgTest(t *testing.T) {
 			jsValue: ctx.Float64(32.32),
 		},
 		{
-			arg:     gopher_qjs_dev.ExampleStruct{Name: "name", Age: 32},
+			arg:     ExampleStruct{Name: "name", Age: 32},
 			jsValue: ctx.ParseJSON(`{"Name":"ccc","Age":12}`),
 		},
 		{
@@ -60,10 +60,10 @@ func TestArgErrorTest(t *testing.T) {
 	defer rt.Close()
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
-	testParams := []gopher_qjs_dev.paramData{
+	testParams := []paramData{
 		{
 			arg:     int(8),
 			jsValue: ctx.String("?????"),

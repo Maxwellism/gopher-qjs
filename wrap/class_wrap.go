@@ -5,7 +5,6 @@ import (
 	"fmt"
 	quickjs "github.com/Maxwellism/gopher-qjs/bind"
 	"reflect"
-	"sync"
 )
 
 var defaultFinalizer = func(obj interface{}) {}
@@ -100,7 +99,7 @@ func WrapClass(class *quickjs.JSClass, classConstructorOptFn ConstructorOpt, opt
 	}
 
 	// classConstructor
-	class.SetConstructor(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) interface{} {
+	class.SetConstructor(func(ctx *quickjs.Context, args []quickjs.Value) interface{} {
 		if classConstructor.bindFn != nil {
 			res, err := bindConstructor(fn, args, cOpts)
 			if err != nil {
@@ -111,7 +110,6 @@ func WrapClass(class *quickjs.JSClass, classConstructorOptFn ConstructorOpt, opt
 			res := classConstructor.constructorFn.Call(
 				[]reflect.Value{
 					reflect.ValueOf(ctx),
-					reflect.ValueOf(this),
 					reflect.ValueOf(args),
 				},
 			)
@@ -135,7 +133,7 @@ func WrapClass(class *quickjs.JSClass, classConstructorOptFn ConstructorOpt, opt
 	bindField(class, res, cOpts)
 
 	// methods
-	bindJsClassMethod(class, cOpts)
+	bindJsClassMethods(class, cOpts)
 
 	return class
 }
@@ -158,41 +156,41 @@ func bindConstructor(constructorFnType reflect.Value, args []quickjs.Value, opt 
 	return res[0].Interface(), nil
 }
 
-func bindJsClassMethod(class *quickjs.JSClass, opt *classOpts) {
-	var wg sync.WaitGroup
+func bindJsClassMethods(class *quickjs.JSClass, opt *classOpts) {
 	for goMethodName, jsMethodName := range opt.methodBindMap {
 		if jsMethodName == "" {
 			jsMethodName = goMethodName
 		}
-		go func(jsFnName, goFnName string) {
-			class.AddClassFn(jsFnName, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
-				val, err := this.GetBindGoObject()
-				if err != nil {
-					panic(err)
-				}
-
-				goValue := reflect.ValueOf(val)
-
-				method := goValue.MethodByName(goFnName)
-
-				if method.Kind() == reflect.Invalid {
-					panic("no method found:" + goFnName)
-				}
-
-				callArgs, err := getBindFnArgs(method.Type(), args, opt)
-				if err != nil {
-					return ctx.ThrowError(err)
-				}
-
-				res := goValue.MethodByName(goFnName).Call(callArgs)
-				if len(res) == 0 {
-					return ctx.Undefined()
-				}
-				return GoObjectToJsValue(res[0].Interface(), ctx)
-			})
-		}(jsMethodName, goMethodName)
+		bindJsClassMethod(class, opt, jsMethodName, goMethodName)
 	}
-	wg.Wait()
+}
+
+func bindJsClassMethod(class *quickjs.JSClass, opt *classOpts, jsFnName, goFnName string) {
+	class.AddClassFn(jsFnName, func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+		val, err := this.GetBindGoObject()
+		if err != nil {
+			panic(err)
+		}
+
+		goValue := reflect.ValueOf(val)
+
+		method := goValue.MethodByName(goFnName)
+
+		if method.Kind() == reflect.Invalid {
+			panic("[" + class.ClassName + "]no method found:" + goFnName)
+		}
+
+		callArgs, err := getBindFnArgs(method.Type(), args, opt)
+		if err != nil {
+			return ctx.ThrowError(err)
+		}
+
+		res := goValue.MethodByName(goFnName).Call(callArgs)
+		if len(res) == 0 {
+			return ctx.Undefined()
+		}
+		return GoObjectToJsValue(res[0].Interface(), ctx)
+	})
 }
 
 func getBindFnArgs(fnType reflect.Type, args []quickjs.Value, opt *classOpts) ([]reflect.Value, error) {

@@ -47,9 +47,7 @@ type JSModule struct {
 	classLock    sync.Mutex
 	classIDList  []uint32
 	exportObject sync.Map
-	isBuild      bool
 	ctx          *Context
-	ref          *C.JSModuleDef
 }
 
 func newMod(modName string) *JSModule {
@@ -84,15 +82,9 @@ func (m *JSModule) AddExportObject(name string, object Value) {
 	m.exportObject.Store(name, &object)
 }
 
-func (m *JSModule) SetExportObject(name string, object Value) {
-	m.exportObject.Store(name, &object)
-	if m.isBuild {
-		cStr := C.CString(name)
-		defer C.free(unsafe.Pointer(cStr))
-
-		C.JS_SetModuleExport(m.ctx.ref, m.ref, cStr, object.ref)
-	}
-}
+//func (m *JSModule) SetExportObject(name string, object Value) {
+//	m.exportObject.Store(name, &object)
+//}
 
 func (m *JSModule) GetExportObject(name string) *Value {
 	if value, ok := m.exportObject.Load(name); ok {
@@ -111,7 +103,7 @@ func (m *JSModule) CreateExportClass(className string) *JSClass {
 	return jsClass
 }
 
-func (m *JSModule) buildModule(ctx *C.JSContext) {
+func (m *JSModule) buildModule(ctx *Context) {
 	defer func() {
 		if err := recover(); err != nil {
 			buf := make([]byte, 4096)
@@ -121,27 +113,16 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 	}()
 
 	if m.ctx == nil {
-		m.ctx = &Context{
-			ref: ctx,
-			runtime: &Runtime{
-				ref:  C.JS_GetRuntime(ctx),
-				loop: NewLoop(),
-			},
-		}
+		m.ctx = ctx
 	}
 
 	cStr := C.CString(m.modName)
 	defer C.free(unsafe.Pointer(cStr))
-	// JSModuleInitFunc
-	if ctx == nil {
-		panic("quickjs JSContext is null")
-	}
-	cmod := C.JS_NewCModule(
-		ctx,
+
+	cModule := C.JS_NewCModule(
+		ctx.ref,
 		cStr,
 		(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoModInit)))
-
-	m.ref = cmod
 
 	m.fnLock.Lock()
 	for _, id := range m.fnIDList {
@@ -149,7 +130,7 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 		goStr := fnInfo.fnName
 		cStr1 := C.CString(goStr)
 		defer C.free(unsafe.Pointer(cStr1))
-		C.JS_AddModuleExport(ctx, cmod, cStr1)
+		C.JS_AddModuleExport(ctx.ref, cModule, cStr1)
 	}
 	m.fnLock.Unlock()
 
@@ -159,7 +140,7 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 		goStr := jsClass.ClassName
 		cStr1 := C.CString(goStr)
 		defer C.free(unsafe.Pointer(cStr1))
-		C.JS_AddModuleExport(ctx, cmod, cStr1)
+		C.JS_AddModuleExport(ctx.ref, cModule, cStr1)
 	}
 	m.classLock.Unlock()
 
@@ -167,10 +148,8 @@ func (m *JSModule) buildModule(ctx *C.JSContext) {
 		if name, ok := key.(string); ok {
 			cStr1 := C.CString(name)
 			defer C.free(unsafe.Pointer(cStr1))
-			C.JS_AddModuleExport(ctx, cmod, cStr1)
+			C.JS_AddModuleExport(ctx.ref, cModule, cStr1)
 		}
 		return true
 	})
-
-	m.isBuild = true
 }

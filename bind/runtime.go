@@ -11,11 +11,56 @@ import (
 	"unsafe"
 )
 
+var BuiltPolyfill = map[string]func(ctx *Context){}
+
+type ContextOpt func(*contextConfig)
+
+type contextConfig struct {
+	polyfillNames      []string
+	isBuildAllPolyfill bool
+	moduleNames        map[string]bool
+	isBuildAllModule   bool
+}
+
+func newContextConfig() *contextConfig {
+	return &contextConfig{
+		isBuildAllModule:   true,
+		isBuildAllPolyfill: true,
+	}
+}
+
+func SetIsBuildAllPolyfill(flag bool) ContextOpt {
+	return func(config *contextConfig) {
+		config.isBuildAllPolyfill = flag
+	}
+}
+
+func SetIsBuildAllModule(flag bool) ContextOpt {
+	return func(config *contextConfig) {
+		config.isBuildAllModule = flag
+	}
+}
+
+func WithBuildPolyfill(polyName string) ContextOpt {
+	return func(config *contextConfig) {
+		config.polyfillNames = append(config.polyfillNames, polyName)
+	}
+}
+
+func WithBuildModule(moduleName string) ContextOpt {
+	return func(config *contextConfig) {
+		if config.moduleNames == nil {
+			config.moduleNames = make(map[string]bool)
+		}
+		config.moduleNames[moduleName] = true
+	}
+}
+
 // Runtime represents a Javascript runtime corresponding to an object heap. Several runtimes can exist at the same time but they cannot exchange objects. Inside a given runtime, no multi-threading is supported.
 type Runtime struct {
-	ref       *C.JSRuntime
-	loop      *Loop // only one loop per runtime
-	goModList []*JSModule
+	ref          *C.JSRuntime
+	loop         *Loop // only one loop per runtime
+	goModuleList []*JSModule
 }
 
 // NewRuntime creates a new quickjs runtime.
@@ -51,10 +96,17 @@ func (r Runtime) SetMaxStackSize(stack_size uint32) {
 	C.JS_SetMaxStackSize(r.ref, C.size_t(stack_size))
 }
 
-// NewModuleContext creates a new JavaScript context.
+// NewContext creates a new JavaScript context.
 // enable BigFloat/BigDecimal support and enable .
 // enable operator overloading.
-func (r Runtime) NewModuleContext() *Context {
+func (r Runtime) NewContext(opts ...ContextOpt) *Context {
+
+	config := newContextConfig()
+
+	for _, opt := range opts {
+		opt(config)
+	}
+
 	ref := C.JS_NewContext(r.ref)
 
 	C.js_std_init_handlers(r.ref)
@@ -70,13 +122,9 @@ func (r Runtime) NewModuleContext() *Context {
 	C.JS_AddIntrinsicBigDecimal(ref)
 	C.JS_AddIntrinsicOperators(ref)
 	C.JS_EnableBignumExt(ref, C.int(1))
-	loadPreludeModules(ref)
+	//loadPreludeModules(ref)
 
 	C.registerGoClass(ref)
-
-	for _, m := range r.goModList {
-		m.buildModule(ref)
-	}
 
 	//
 	//cStr := C.CString("ModuleNameTest")
@@ -87,19 +135,38 @@ func (r Runtime) NewModuleContext() *Context {
 	//	cStr,
 	//	(*C.JSModuleInitFunc)(unsafe.Pointer(C.InvokeGoInitModule)))
 
-	return &Context{ref: ref, runtime: &r}
+	resContext := &Context{ref: ref, runtime: &r}
+
+	r.buildPolyfill(config, resContext)
+	r.buildModule(config, resContext)
+
+	return resContext
 }
 
-// NewSimpleContext create a simple context with no modules and custom class
-func (r Runtime) NewSimpleContext() *Context {
-	ref := C.JS_NewContext(r.ref)
+func (r *Runtime) buildPolyfill(config *contextConfig, ctx *Context) {
+	if config.isBuildAllPolyfill {
+		for _, value := range BuiltPolyfill {
+			value(ctx)
+		}
+	} else {
+		for _, name := range config.polyfillNames {
+			BuiltPolyfill[name](ctx)
+		}
+	}
+}
 
-	C.JS_AddIntrinsicBigFloat(ref)
-	C.JS_AddIntrinsicBigDecimal(ref)
-	C.JS_AddIntrinsicOperators(ref)
-	C.JS_EnableBignumExt(ref, C.int(1))
-
-	return &Context{ref: ref, runtime: &r}
+func (r *Runtime) buildModule(config *contextConfig, ctx *Context) {
+	if config.isBuildAllModule {
+		for _, m := range r.goModuleList {
+			m.buildModule(ctx)
+		}
+	} else {
+		for _, m := range r.goModuleList {
+			if config.moduleNames[m.modName] {
+				m.buildModule(ctx)
+			}
+		}
+	}
 }
 
 func loadPreludeModules(ctx *C.JSContext) {
@@ -113,7 +180,7 @@ func loadPreludeModules(ctx *C.JSContext) {
 	defer C.free(unsafe.Pointer(osModulePtr))
 	C.js_init_module_os(ctx, osModulePtr)
 
-	C.js_std_add_helpers(ctx, -1, (**C.char)(unsafe.Pointer(nil)))
+	//C.js_std_add_helpers(ctx, -1, (**C.char)(unsafe.Pointer(nil)))
 	// C.JS_AddIntrinsicProxy(ctx)
 }
 
@@ -160,12 +227,12 @@ func (r Runtime) ExecuteAllPendingJobs() error {
 
 //// AddGoModule add go module
 //func (r *Runtime) AddGoModule(m *JSModule) {
-//	r.goModList = append(r.goModList, m)
+//	r.goModuleList = append(r.goModuleList, m)
 //}
 
 func (r *Runtime) CreateModule(moduleName string) *JSModule {
 	m := newMod(moduleName)
-	r.goModList = append(r.goModList, m)
+	r.goModuleList = append(r.goModuleList, m)
 	return m
 }
 

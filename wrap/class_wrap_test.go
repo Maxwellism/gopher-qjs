@@ -3,6 +3,7 @@ package quickjsWrap_test
 import (
 	"fmt"
 	quickjs "github.com/Maxwellism/gopher-qjs/bind"
+	"github.com/Maxwellism/gopher-qjs/polyfill"
 	quickjsWrap "github.com/Maxwellism/gopher-qjs/wrap"
 	"testing"
 )
@@ -23,6 +24,7 @@ func (s *ExampleStruct) QJSGetTest() {
 }
 
 func TestClassBind(t *testing.T) {
+	polyfill.Polyfill()
 	// Create a new runtime
 	rt := quickjs.NewRuntime()
 	defer rt.Close()
@@ -46,7 +48,7 @@ func TestClassBind(t *testing.T) {
 		}),
 	)
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ret, err := ctx.Eval(`
@@ -91,9 +93,9 @@ func TestClassConstructor(t *testing.T) {
 	class2 := rt.CreateGlobalClass("ClassTest2")
 	class2 = quickjsWrap.WrapClass(
 		class2,
-		quickjsWrap.WithQjsConstructorFn(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) ExampleStruct {
+		quickjsWrap.WithQjsConstructorFn(func(ctx *quickjs.Context, args []quickjs.Value) *ExampleStruct {
 			fmt.Println("ClassTest2")
-			return ExampleStruct{}
+			return &ExampleStruct{}
 		}),
 		quickjsWrap.WithExportMethodBindList(map[string]string{
 			"QJSGetTest": "GetTest",
@@ -105,7 +107,7 @@ func TestClassConstructor(t *testing.T) {
 	)
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ret, err := ctx.Eval(`

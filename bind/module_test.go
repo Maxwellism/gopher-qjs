@@ -3,11 +3,19 @@ package quickjsBind_test
 import (
 	"fmt"
 	"github.com/Maxwellism/gopher-qjs/bind"
+	"github.com/Maxwellism/gopher-qjs/polyfill"
 	json "github.com/json-iterator/go"
 	"testing"
 )
 
+type ExampleObject struct {
+	Name string `json:"name,omitempty"`
+	Age  int32  `json:"age,omitempty"`
+}
+
 func TestModule(t *testing.T) {
+
+	polyfill.Polyfill()
 
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
@@ -33,7 +41,7 @@ func TestModule(t *testing.T) {
 	})
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	res, err := ctx.EvalFile("./examples/my_module_test.js")
@@ -53,7 +61,7 @@ func TestModClass(t *testing.T) {
 
 	class := m.CreateExportClass("classTest")
 
-	class.SetConstructor(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) interface{} {
+	class.SetConstructor(func(ctx *quickjsBind.Context, args []quickjsBind.Value) interface{} {
 		fmt.Println("=========start Constructor==========")
 		if len(args) < 2 {
 			panic("Constructor arg len is < 1")
@@ -89,7 +97,7 @@ func TestModClass(t *testing.T) {
 	//})
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	res, err := ctx.EvalFile("./examples/my_module_class_test.js")
@@ -109,7 +117,7 @@ func TestCreateModClassObject(t *testing.T) {
 
 	class := m.CreateExportClass("classTest")
 
-	class.SetConstructor(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) interface{} {
+	class.SetConstructor(func(ctx *quickjsBind.Context, args []quickjsBind.Value) interface{} {
 		fmt.Println("=========start Constructor==========")
 		if len(args) < 2 {
 			panic("Constructor arg len is < 1")
@@ -132,7 +140,7 @@ func TestCreateModClassObject(t *testing.T) {
 	})
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	res, err := ctx.EvalFile("./examples/my_module_class_test.js")
@@ -158,34 +166,40 @@ func TestCreateModClassObject(t *testing.T) {
 }
 
 func TestModuleObject(t *testing.T) {
+
+	polyfill.Polyfill()
+
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	sCtx := rt.NewSimpleContext()
+	sCtx := rt.NewContext()
 	defer sCtx.Close()
 
 	m := rt.CreateModule("module_test")
 
 	m.AddExportObject("object1", sCtx.Int32(32))
 
-	mCtx := rt.NewModuleContext()
+	mCtx := rt.NewContext()
 
 	_, err := mCtx.EvalMode(`
 import * as m from "module_test";
 console.log("js console1:",m.object1)
 `, quickjsBind.JS_EVAL_TYPE_MODULE)
 	if err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
-	// change value
-	m.SetExportObject("object1", sCtx.Object())
+
+	mCtx.Close()
+
+	mCtx = rt.NewContext()
 
 	_, err = mCtx.EvalMode(`
-import * as m from "module_test";
-console.log("js console2:",m.object1)
-m.object1.name = "change object test1"
-console.log("js console3:",m.object1.name)
-`, quickjsBind.JS_EVAL_TYPE_MODULE)
+	import * as m from "module_test";
+	console.log("js console2:",m.object1)
+	m.object1.name = "change object test1"
+	console_print.log("js console3:",m.object1.name)
+	`, quickjsBind.JS_EVAL_TYPE_MODULE)
 	if err != nil {
 		fmt.Println(err)
 	}
