@@ -70,6 +70,27 @@ func WithQjsConstructorFn(constructorFn interface{}) ConstructorOpt {
 			panic(fmt.Sprintf("constructor func there must be only one return parameter"))
 		}
 
+		if fn.Type().NumIn() != 2 {
+			panic(
+				fmt.Sprintf(
+					"constructor the input parameters of the method must be two, and the first is [%s] and the second is [%s]",
+					"*github.com/Maxwellism/gopher-qjs/bind.Context",
+					"github.com/Maxwellism/gopher-qjs/bind.Value",
+				))
+		}
+		theFirstArg := fn.Type().In(0)
+		if theFirstArg.Kind() != reflect.Ptr {
+			panic("constructor the first parameter type is not *github.com/Maxwellism/gopher-qjs/bind.Context")
+		}
+		theFirstArg = theFirstArg.Elem()
+		if fmt.Sprintf("%s.%s", theFirstArg.PkgPath(), theFirstArg.Name()) != "github.com/Maxwellism/gopher-qjs/bind.Context" {
+			panic("constructor the first parameter type is not *github.com/Maxwellism/gopher-qjs/bind.Context")
+		}
+		theSecondArg := fn.Type().In(1).Elem()
+		//fmt.Println(theSecondArg.Elem().PkgPath())
+		if fmt.Sprintf("%s.%s", theSecondArg.PkgPath(), theSecondArg.Name()) != "github.com/Maxwellism/gopher-qjs/bind.Value" {
+			panic("constructor the second parameter type is not github.com/Maxwellism/gopher-qjs/bind.Value")
+		}
 		opts.constructorFn = &fn
 	}
 }
