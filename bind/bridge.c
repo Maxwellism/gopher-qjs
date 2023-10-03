@@ -41,9 +41,9 @@ JSValue InvokeGoClassConstructor(JSContext *ctx, JSValueConst new_target, int ar
     JSValue obj = JS_UNDEFINED;
     JSValue proto;
 
-    int32_t goObjectId = goClassConstructorHandle(ctx,new_target,argc,argv,magic);
+    char *goObjectId = goClassConstructorHandle(ctx,new_target,argc,argv,magic);
 
-    if (goObjectId<0){
+    if (strncmp(goObjectId,"",1)==0){
         return JS_EXCEPTION;
     }
 
@@ -61,7 +61,7 @@ JSValue InvokeGoClassConstructor(JSContext *ctx, JSValueConst new_target, int ar
     obj = JS_NewObjectProtoClass(ctx, proto, magic);
 
 //    JS_SetPropertyStr(ctx, proto, "_goClassID", JS_NewInt32(ctx, (int32_t)magic));
-    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewInt32(ctx, goObjectId));
+    JS_SetPropertyStr(ctx, proto, "_goObjectID", JS_NewString(ctx, goObjectId));
 
     JS_FreeValue(ctx, proto);
     if (JS_IsException(obj)){

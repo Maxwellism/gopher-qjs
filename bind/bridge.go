@@ -279,7 +279,7 @@ func goClassSetFnHandle(ctx *C.JSContext, thisVal C.JSValueConst, argc C.int, ar
 }
 
 //export goClassConstructorHandle
-func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) C.int32_t {
+func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C.int, argv *C.JSValueConst, magic int) *C.char {
 	defer func() {
 		if err := recover(); err != nil {
 			buf := make([]byte, 4096)
@@ -294,7 +294,7 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 	jsGoClass := getClassByID(goClassId)
 
 	if jsGoClass == nil {
-		return C.int32_t(-1)
+		return C.CString("")
 	}
 
 	if jsGoClass.ctx == nil {
@@ -316,11 +316,14 @@ func goClassConstructorHandle(ctx *C.JSContext, newTarget C.JSValueConst, argc C
 	v := jsGoClass.constructorFn(jsGoClass.ctx, args)
 	objectID := pushGoObjectByJS(v)
 
-	return C.int32_t(objectID)
+	cObjectID := C.CString(objectID)
+	defer C.free(unsafe.Pointer(cObjectID))
+
+	return cObjectID
 }
 
 //export goFinalizerHandle
-func goFinalizerHandle(goClassID C.int, goObjectID C.int32_t) {
+func goFinalizerHandle(goClassID C.int, goObjectID *C.char) {
 	defer func() {
 		if err := recover(); err != nil {
 			buf := make([]byte, 4096)
@@ -329,7 +332,7 @@ func goFinalizerHandle(goClassID C.int, goObjectID C.int32_t) {
 		}
 	}()
 
-	objectID := int32(goObjectID)
+	objectID := C.GoString(goObjectID)
 
 	classID := uint32(goClassID)
 

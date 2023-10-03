@@ -6,6 +6,8 @@ package quickjsBind
 */
 import "C"
 import (
+	"fmt"
+	"reflect"
 	"sync"
 	"sync/atomic"
 )
@@ -34,31 +36,38 @@ func putGlobalJsClass(id uint32, jsClass *JSClass) {
 	jsGlobalClassIDMap[id] = jsClass
 }
 
-var jsClassMapGoObjectPtrLen int32
 var jsClassMapGoObjectLock sync.Mutex
-var jsClassMapGoObject = make(map[int32]interface{})
+var jsClassMapGoObject = make(map[string]interface{})
 
-func pushGoObjectByJS(v interface{}) int32 {
-	id := atomic.AddInt32(&jsClassMapGoObjectPtrLen, 1) - 1
+func pushGoObjectByJS(v interface{}) string {
 	jsClassMapGoObjectLock.Lock()
 	defer jsClassMapGoObjectLock.Unlock()
+	id := getObjectPtr(v)
 	jsClassMapGoObject[id] = v
 	return id
 }
-func getGoObjectByID(id int32) interface{} {
+func getGoObjectByID(id string) interface{} {
 	jsClassMapGoObjectLock.Lock()
 	defer jsClassMapGoObjectLock.Unlock()
 	return jsClassMapGoObject[id]
 }
-func putGoObject(id int32, v interface{}) {
+func putGoObject(id string, v interface{}) {
 	jsClassMapGoObjectLock.Lock()
 	defer jsClassMapGoObjectLock.Unlock()
 	jsClassMapGoObject[id] = v
 }
-func deleteGoObjectByID(id int32) {
+func deleteGoObjectByID(id string) {
 	jsClassMapGoObjectLock.Lock()
 	defer jsClassMapGoObjectLock.Unlock()
 	delete(jsClassMapGoObject, id)
+}
+
+func getObjectPtr(v interface{}) string {
+	value := reflect.ValueOf(v)
+	if value.Kind() != reflect.Ptr {
+		value = reflect.ValueOf(&v)
+	}
+	return fmt.Sprintf("%v", value.Pointer())
 }
 
 var jsClassFnPtrLen int32

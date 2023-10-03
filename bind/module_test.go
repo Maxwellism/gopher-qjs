@@ -177,7 +177,11 @@ func TestModuleObject(t *testing.T) {
 
 	m := rt.CreateModule("module_test")
 
+	//obj := sCtx.Object()
+	//defer obj.Free()
+
 	m.AddExportObject("object1", sCtx.Int32(32))
+	//m.AddExportObject("object2", obj)
 
 	mCtx := rt.NewContext()
 
@@ -197,8 +201,8 @@ console.log("js console1:",m.object1)
 	_, err = mCtx.EvalMode(`
 	import * as m from "module_test";
 	console.log("js console2:",m.object1)
-	m.object1.name = "change object test1"
-	console_print.log("js console3:",m.object1.name)
+	//m.object2.name = "change object test1"
+	//console.log("js console3:",m.object2.name)
 	`, quickjsBind.JS_EVAL_TYPE_MODULE)
 	if err != nil {
 		fmt.Println(err)

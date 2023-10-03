@@ -347,7 +347,7 @@ func (v Value) getGoObject() (interface{}, error) {
 	if idVal.IsUndefined() {
 		return nil, errors.New("the value there is no corresponding go object")
 	} else {
-		return getGoObjectByID(idVal.Int32()), nil
+		return getGoObjectByID(idVal.String()), nil
 	}
 }
 
@@ -355,13 +355,13 @@ func (v Value) GetBindGoObject() (interface{}, error) {
 	return v.getGoObject()
 }
 
-func (v Value) SetBindGoObject(val interface{}) int32 {
+func (v Value) SetBindGoObject(val interface{}) string {
 	idVal := v.Get("_goObjectID")
 	if idVal.IsUndefined() {
 		return pushGoObjectByJS(val)
 	} else {
-		putGoObject(idVal.Int32(), val)
-		return idVal.Int32()
+		putGoObject(idVal.String(), val)
+		return idVal.String()
 	}
 }
 

@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
     int goClassID;
-    int32_t objectId;
+    char *objectId;
 } GoClassObjectInfo;
 
 extern void SetInterruptHandler(JSRuntime *rt, void *handlerArgs);
