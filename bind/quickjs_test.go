@@ -21,7 +21,7 @@ func Example() {
 	defer rt.Close()
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	// Create a new object
@@ -80,7 +80,7 @@ func TestRuntimeGC(t *testing.T) {
 	// set runtime options
 	rt.SetGCThreshold(256 * 1024)
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	rt.RunGC()
@@ -98,7 +98,7 @@ func TestRuntimeMemoryLimit(t *testing.T) {
 	// set runtime options
 	rt.SetMemoryLimit(256 * 1024) //512KB
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	result, err := ctx.Eval(`var array = []; while (true) { array.push(null) }`)
@@ -116,7 +116,7 @@ func TestRuntimeStackSize(t *testing.T) {
 
 	rt.SetMaxStackSize(65534)
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	result, err := ctx.Eval(`
@@ -144,7 +144,7 @@ func TestThrowError(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
@@ -160,7 +160,7 @@ func TestThrowInternalError(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
@@ -176,7 +176,7 @@ func TestThrowRangeError(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
@@ -192,7 +192,7 @@ func TestThrowReferenceError(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
@@ -208,7 +208,7 @@ func TestThrowSyntaxError(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
@@ -224,7 +224,7 @@ func TestThrowTypeError(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("A", ctx.Function(func(ctx *quickjsBind.Context, this quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
@@ -240,7 +240,7 @@ func TestValue(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	// require.EqualValues(t, big.NewInt(1), ctx.BigUint64(uint64(1)).)
@@ -295,7 +295,7 @@ func TestEvalBytecode(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 	jsStr := `
 	function fib(n)
@@ -315,7 +315,7 @@ func TestEvalBytecode(t *testing.T) {
 	rt2 := quickjsBind.NewRuntime()
 	defer rt2.Close()
 
-	ctx2 := rt2.NewModuleContext()
+	ctx2 := rt2.NewContext()
 	defer ctx2.Close()
 
 	result, err := ctx2.EvalBytecode(buf)
@@ -328,7 +328,7 @@ func TestEvalFile(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	rt1, err := ctx.EvalFile("./examples/hello_module.js")
@@ -342,7 +342,7 @@ func TestBadSyntax(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	_, err := ctx.Compile(`"bad syntax'`)
@@ -354,7 +354,7 @@ func TestBadBytecode(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	buf := make([]byte, 1)
@@ -367,7 +367,7 @@ func TestArrayBuffer(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	binaryData := []uint8{1, 2, 3, 4, 5}
@@ -404,7 +404,7 @@ func TestConcurrency(t *testing.T) {
 			rt := quickjsBind.NewRuntime()
 			defer rt.Close()
 
-			ctx := rt.NewModuleContext()
+			ctx := rt.NewContext()
 			defer ctx.Close()
 
 			for range req {
@@ -436,7 +436,7 @@ func TestJson(t *testing.T) {
 	defer rt.Close()
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	// Create a  object from json
@@ -454,7 +454,7 @@ func TestObject(t *testing.T) {
 	defer rt.Close()
 
 	// Create a new context
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	// Create a new object
@@ -513,7 +513,7 @@ func TestArray(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	test := ctx.Array()
@@ -562,7 +562,7 @@ func TestMap(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	test := ctx.Map()
@@ -610,7 +610,7 @@ func TestSet(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	test := ctx.Set()
@@ -637,7 +637,7 @@ func TestAsyncFunction(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	ctx.Globals().Set("testAsync", ctx.AsyncFunction(func(ctx *quickjsBind.Context, this quickjsBind.Value, promise quickjsBind.Value, args []quickjsBind.Value) quickjsBind.Value {
@@ -676,7 +676,7 @@ func TestSetInterruptHandler(t *testing.T) {
 	rt := quickjsBind.NewRuntime()
 	defer rt.Close()
 
-	ctx := rt.NewModuleContext()
+	ctx := rt.NewContext()
 	defer ctx.Close()
 
 	startTime := time.Now().Unix()
